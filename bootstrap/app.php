@@ -16,7 +16,6 @@ use Symfony\Component\HttpFoundation\Response;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
-        health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Global, so error pages (404, 419, 500) also carry the security headers.

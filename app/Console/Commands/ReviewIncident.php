@@ -10,6 +10,7 @@ use App\Enums\IncidentLogAction;
 use App\Enums\IncidentStatus;
 use App\Models\Incident;
 use App\Models\IncidentLog;
+use App\Rules\CleanText;
 use App\Support\CurrentActor;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
@@ -172,7 +173,7 @@ final class ReviewIncident extends Command
 
         if ($reason === '') {
             $errors[] = 'Falta --reason: qué se comprobó y con quién. Queda en el historial con el nombre de quien revisa.';
-        } elseif (! mb_check_encoding($reason, 'UTF-8') || preg_match('/[\p{Cc}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', $reason) === 1) {
+        } elseif (! mb_check_encoding($reason, 'UTF-8') || preg_match('/[\p{Cc}'.CleanText::FORMAT_CHARACTERS.']/u', $reason) === 1) {
             $errors[] = 'El motivo no puede llevar caracteres de control, saltos de línea ni marcas de dirección del texto.';
         } elseif (mb_strlen($reason) > $maxLength) {
             $errors[] = sprintf('El motivo es demasiado largo: como máximo %d caracteres.', $maxLength);

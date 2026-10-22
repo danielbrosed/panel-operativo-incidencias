@@ -24,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
             $app->make('session.store'),
             CurrentActor::operatorsFromConfig(),
         ));
+
+        // Inertia's DevTools switch themselves on in local when the variable is missing, and serve the recorded
+        // requests without authentication. Here they only run when INERTIA_DEVTOOLS_ENABLED=true is set explicitly.
+        config(['inertia.devtools.enabled' => (bool) config('inertia.devtools.enabled')]);
     }
 
     public function boot(): void

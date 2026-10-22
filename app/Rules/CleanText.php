@@ -17,7 +17,12 @@ use Illuminate\Contracts\Validation\ValidationRule;
  */
 final class CleanText implements ValidationRule
 {
-    private const BIDI_CONTROLS = '\x{202A}-\x{202E}\x{2066}-\x{2069}';
+    /**
+     * Regex character-class body: bidirectional overrides and isolates, plus invisible format characters (Arabic
+     * letter mark, zero-width space, LRM/RLM, line and paragraph separators, BOM). U+200D (zero-width joiner) is
+     * left out on purpose: emoji sequences use it. Shared with everything that prints untrusted text.
+     */
+    public const FORMAT_CHARACTERS = '\x{202A}-\x{202E}\x{2066}-\x{2069}\x{061C}\x{200B}\x{200E}\x{200F}\x{2028}\x{2029}\x{FEFF}';
 
     public function __construct(private readonly bool $multiline = false) {}
 
@@ -35,7 +40,7 @@ final class CleanText implements ValidationRule
 
         $controls = $this->multiline ? '[^\P{Cc}\t\n\r]' : '\p{Cc}';
 
-        if (preg_match('/'.$controls.'|['.self::BIDI_CONTROLS.']/u', $value) === 1) {
+        if (preg_match('/'.$controls.'|['.self::FORMAT_CHARACTERS.']/u', $value) === 1) {
             $fail('validation.control_characters')->translate();
         }
     }

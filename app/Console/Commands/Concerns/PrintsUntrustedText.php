@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Concerns;
 
+use App\Rules\CleanText;
+
 trait PrintsUntrustedText
 {
     /**
@@ -14,7 +16,7 @@ trait PrintsUntrustedText
      */
     private static function untrusted(string $text): string
     {
-        $clean = preg_replace('/[\p{Cc}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', '', mb_scrub($text, 'UTF-8')) ?? '';
+        $clean = preg_replace('/[\p{Cc}'.CleanText::FORMAT_CHARACTERS.']/u', '', mb_scrub($text, 'UTF-8')) ?? '';
 
         return strtr($clean, ['<' => '‹', '>' => '›']);
     }

@@ -85,6 +85,8 @@ class SecurityTest extends TestCase
             ->assertSessionHasErrors(['title' => 'El campo título contiene caracteres de control no permitidos.']);
         $this->post('/incidents', [...$payload, 'title' => "Rótulo apagado \u{202E}odagapa"])
             ->assertSessionHasErrors('title');
+        $this->post('/incidents', [...$payload, 'title' => "Rótulo\u{200B} apagado\u{FEFF}"])
+            ->assertSessionHasErrors('title');
 
         // Line breaks and tabs are fine where the field is multi-line.
         $this->post('/incidents', [...$payload, 'title' => 'Rótulo de fachada apagado'])->assertSessionHasNoErrors();
