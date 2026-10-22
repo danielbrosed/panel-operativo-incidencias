@@ -89,10 +89,4 @@ enum IncidentStatus: string
             default => $to->label(),
         };
     }
-
-    /** @return list<string> */
-    public static function values(): array
-    {
-        return array_map(fn (self $status): string => $status->value, self::cases());
-    }
 }

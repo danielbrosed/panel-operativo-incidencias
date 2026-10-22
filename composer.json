@@ -4,7 +4,7 @@
     "type": "project",
     "description": "Panel operativo de incidencias: Laravel 13, MySQL 8 e Inertia v3 con React.",
     "keywords": ["laravel", "inertia", "react", "mysql"],
-    "license": "MIT",
+    "license": "proprietary",
     "require": {
         "php": "^8.3",
         "inertiajs/inertia-laravel": "^3.5",
@@ -52,6 +52,7 @@
             "vendor/bin/phpstan analyse --no-progress --memory-limit=1G",
             "npm run types",
             "npm run lint",
+            "npm run format:check",
             "@test"
         ],
         "post-autoload-dump": [
@@ -81,6 +82,6 @@
             "php": "8.3.0"
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }

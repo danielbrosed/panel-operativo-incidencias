@@ -15,6 +15,13 @@ Solo cuando se cumplen las tres:
 
 Todo lo demás se **marca para revisión manual** (log `flagged_for_review`) y se explica en la salida por qué.
 
+Aunque se cumplan las tres, se marca en vez de corregir si el historial no es de fiar: la evidencia tiene fecha
+futura, el historial no empieza por `created` o la misma incidencia tiene un log duplicado o incoherente.
+
+Un caso marcado lo cierra **una persona** con `php artisan incidents:review {id} --actor=… --reason=…`: si el hueco es
+un único paso permitido al final del historial lo registra firmado por ella y con su motivo, y anula la marca como
+«Revisada por…». Un agente de IA nunca ejecuta ese comando: el autor y el motivo tienen que ser reales.
+
 ## Nunca
 
 - Borrar filas de `incident_logs`. Un log sobrante se **anula** (`voided_at` + `voided_reason`), no se borra.

@@ -9,7 +9,8 @@ Marca cada punto mirando el diff, no de memoria. Si algo no aplica, dilo.
 
 ## Datos y dominio
 
-- [ ] Toda escritura que toca la incidencia y su trazabilidad va en `DB::transaction()` con `lockForUpdate()`.
+- [ ] Toda escritura que toca la incidencia y su trazabilidad va en `DB::transaction()`; si modifica una incidencia
+      que ya existe, además con `lockForUpdate()` sobre la fila recién leída.
 - [ ] Ningún estado, prioridad o acción escrito como string suelto fuera de `app/Enums/` y de las migraciones.
 - [ ] `incident_logs`: ni `update` ni `delete` (solo `void()`); fechas y autores reales.
 - [ ] `$fillable` explícito; `status` fuera.

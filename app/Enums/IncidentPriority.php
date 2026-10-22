@@ -43,10 +43,4 @@ enum IncidentPriority: string
             self::High => 4,
         };
     }
-
-    /** @return list<string> */
-    public static function values(): array
-    {
-        return array_map(fn (self $priority): string => $priority->value, self::cases());
-    }
 }
