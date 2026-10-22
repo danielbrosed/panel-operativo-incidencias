@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Global, so error pages (404, 419, 500) also carry the security headers.
         $middleware->append(SecurityHeaders::class);
 
+        // Outside local and testing, only the host of APP_URL (and its subdomains) is accepted: absolute URLs built
+        // from a forged Host header would otherwise point assets and redirects elsewhere.
+        $middleware->trustHosts();
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);
@@ -37,19 +41,20 @@ return Application::configure(basePath: dirname(__DIR__))
             ])->status($e->isConflict() ? 409 : 422),
         );
 
-        // Expired session (419) and rate limit (429): go back with a readable message instead of an error page.
+        // Expired session (419) and rate limit (429): go back with a readable message instead of an error page. It
+        // travels as a validation error too (key "request"), so the form treats it as a failure and keeps what the
+        // person typed instead of resetting as it does on success.
         $exceptions->respond(function (Response $response, Throwable $e, Request $request): Response {
             $status = $response->getStatusCode();
 
             if ($request->header('X-Inertia') && in_array($status, [419, 429], true)) {
-                Inertia::flash('toast', [
-                    'type' => 'error',
-                    'message' => $status === 419
-                        ? 'La sesión ha caducado. Vuelve a intentarlo.'
-                        : 'Demasiadas acciones seguidas. Espera un momento y vuelve a intentarlo.',
-                ]);
+                $message = $status === 419
+                    ? 'La sesión ha caducado. Vuelve a intentarlo.'
+                    : 'Demasiadas acciones seguidas. Espera un momento y vuelve a intentarlo.';
 
-                return back();
+                Inertia::flash('toast', ['type' => 'error', 'message' => $message]);
+
+                return back()->withErrors(['request' => $message]);
             }
 
             return $response;

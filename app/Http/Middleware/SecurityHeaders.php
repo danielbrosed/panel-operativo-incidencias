@@ -20,8 +20,9 @@ class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Fails closed: anything other than an explicit "report" or "off" (a typo included) enforces the policy.
         $mode = config('security.csp');
-        $nonce = in_array($mode, ['enforce', 'report'], true) ? Vite::useCspNonce() : null;
+        $nonce = $mode === 'off' ? null : Vite::useCspNonce();
 
         $response = $next($request);
 

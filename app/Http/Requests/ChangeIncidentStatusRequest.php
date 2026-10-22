@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\IncidentStatus;
-use App\Rules\ValidUtf8;
+use App\Rules\CleanText;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +25,7 @@ class ChangeIncidentStatusRequest extends FormRequest
             'reason' => [
                 'nullable',
                 'string',
-                new ValidUtf8,
+                new CleanText(multiline: true),
                 'max:500',
                 Rule::requiredIf(fn (): bool => $this->requiresReason()),
             ],
