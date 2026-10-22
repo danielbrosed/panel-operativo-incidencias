@@ -14,12 +14,16 @@ enum FixOutcome
     /** Someone flagged the same finding between the plan and the fix. */
     case AlreadyFlagged;
 
+    /** A person reviewed the same finding (incidents:review) between the plan and the fix. */
+    case AlreadyReviewed;
+
     public function message(): string
     {
         return match ($this) {
-            self::Applied => 'aplicada',
+            self::Applied => 'corregida',
             self::NoLongerTrue => 'omitida, el hallazgo ya no se cumple (la incidencia cambió desde el diagnóstico)',
             self::AlreadyFlagged => 'omitida, ya estaba marcada para revisión manual',
+            self::AlreadyReviewed => 'omitida, ya estaba revisada',
         };
     }
 }

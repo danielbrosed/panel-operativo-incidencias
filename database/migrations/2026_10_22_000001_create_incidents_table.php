@@ -15,8 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('title', 160);
             $table->text('description');
-            $table->string('status', 20);
-            $table->string('priority', 10);
+            // Binary, NO PAD collation: enum values compare exactly, so the CHECKs below reject 'OPEN', 'open ' or
+            // 'résolved', which the case- and accent-insensitive default (utf8mb4_unicode_ci) would let through.
+            $table->string('status', 20)->collation('utf8mb4_0900_bin');
+            $table->string('priority', 10)->collation('utf8mb4_0900_bin');
             $table->string('requester_name', 120);
             // A name from config('incidents.operators'); with real users this would be a foreign key to users.
             $table->string('assigned_to', 120)->nullable();

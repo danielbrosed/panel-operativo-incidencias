@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use InvalidArgumentException;
 
 /**
  * Append-only audit trail of an incident.
@@ -74,9 +75,29 @@ class IncidentLog extends Model
         return $this->belongsTo(Incident::class);
     }
 
+    /**
+     * Voids the row once, with a reason. A single conditional UPDATE, so two processes holding stale copies of the
+     * same row cannot both void it: the second one changes nothing and fails instead of overwriting the reason.
+     *
+     * @throws InvalidArgumentException when the reason is empty
+     * @throws ImmutableIncidentLog when the row was already voided
+     */
     public function void(string $reason): void
     {
-        $this->forceFill(['voided_at' => now(), 'voided_reason' => $reason])->save();
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw new InvalidArgumentException("incident_logs #{$this->id} can only be voided with a reason.");
+        }
+
+        $voided = static::query()->whereKey($this->id)->whereNull('voided_at')
+            ->update(['voided_at' => now(), 'voided_reason' => $reason]);
+
+        if ($voided === 0) {
+            throw ImmutableIncidentLog::cannotUpdate($this);
+        }
+
+        $this->refresh();
     }
 
     public function isVoided(): bool

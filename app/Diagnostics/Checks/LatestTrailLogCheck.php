@@ -42,7 +42,6 @@ abstract class LatestTrailLogCheck extends SqlCheck
 
     protected function toFinding(stdClass $row): Finding
     {
-        $current = IncidentStatus::from($row->status);
         $evidenceLogId = $row->last_log_id === null ? null : (int) $row->last_log_id;
 
         return new Finding(
@@ -51,25 +50,31 @@ abstract class LatestTrailLogCheck extends SqlCheck
             incidentTitle: $row->title,
             evidenceLogId: $evidenceLogId,
             detail: $evidenceLogId === null
-                ? sprintf('Está «%s», pero no tiene ningún log de estado activo.', self::label($current->value))
+                ? sprintf('Está «%s», pero no tiene ningún log de estado activo.', self::label($row->status))
                 : sprintf(
                     'Está «%s», pero su último log de estado (#%d) la deja «%s».',
-                    self::label($current->value),
+                    self::label($row->status),
                     $evidenceLogId,
                     self::label($row->logged_status),
                 ),
-            fix: self::fixFor($evidenceLogId, IncidentStatus::tryFrom((string) $row->logged_status), $current),
+            // tryFrom on both sides: a value written by SQL that is not in the enum is a finding, never a crash.
+            fix: self::fixFor(
+                $evidenceLogId,
+                IncidentStatus::tryFrom((string) $row->logged_status),
+                IncidentStatus::tryFrom((string) $row->status),
+            ),
         );
     }
 
     /** The correction rule (see App\Diagnostics\IncidentDiagnostics): one allowed step without reason, or a person. */
-    private static function fixFor(?int $evidenceLogId, ?IncidentStatus $logged, IncidentStatus $current): Fix
+    private static function fixFor(?int $evidenceLogId, ?IncidentStatus $logged, ?IncidentStatus $current): Fix
     {
-        if ($logged !== null && $logged->canTransitionTo($current) && ! $logged->requiresReason($current)) {
+        if ($current !== null && $logged !== null && $logged->canTransitionTo($current) && ! $logged->requiresReason($current)) {
             return new ReconcileStatus($logged, $current);
         }
 
         return new FlagForReview(match (true) {
+            $current === null => 'El estado de la incidencia no es un valor válido: no se puede deducir nada de él.',
             $evidenceLogId === null => 'No hay ningún log del que partir: habría que inventar cómo y cuándo llegó a este estado.',
             $logged === null => 'El último log no tiene un estado válido: no se puede deducir el paso que falta.',
             ! $logged->canTransitionTo($current) => sprintf(

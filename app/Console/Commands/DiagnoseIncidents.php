@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\PrintsUntrustedText;
 use App\Diagnostics\FixOutcome;
 use App\Diagnostics\IncidentDiagnostics;
 use App\Diagnostics\PlannedAction;
@@ -12,11 +13,14 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Helper\Table;
 
 /**
- * Exit code 0 when there is nothing left for --fix to do (incidents already flagged are listed, but are not
- * pending); 1 when there is, when something could not be applied, or when the fix was not confirmed.
+ * Exit code 0 when there is nothing left for --fix to do (findings already flagged or reviewed are listed, but are
+ * not pending); 1 when there is, when something could not be applied, when the diagnostic run again after --fix
+ * still finds work, or when the fix was not confirmed.
  */
 final class DiagnoseIncidents extends Command
 {
+    use PrintsUntrustedText;
+
     protected $signature = 'incidents:diagnose
         {--fix : Aplica las correcciones previstas, después de pedir confirmación}
         {--force : Con --fix, no pide confirmación (para la CI)}';
@@ -35,7 +39,7 @@ final class DiagnoseIncidents extends Command
 
         if ($pending === []) {
             if ($plan !== []) {
-                $this->info('Nada que corregir: lo que queda ya está marcado para revisión manual.');
+                $this->info(self::nothingToFix($plan));
             }
 
             return self::SUCCESS;
@@ -90,7 +94,7 @@ final class DiagnoseIncidents extends Command
             $table = (new Table($this->output))
                 ->setHeaders(['Incidencia', 'Detalle', 'Acción prevista'])
                 ->setColumnWidths(self::COLUMN_WIDTHS)
-                ->setRows(array_map(fn (PlannedAction $action): array => array_map(OutputFormatter::escape(...), [
+                ->setRows(array_map(fn (PlannedAction $action): array => array_map(self::untrusted(...), [
                     "#{$action->finding->incidentId} {$action->finding->incidentTitle}",
                     $action->finding->detail,
                     $action->describe(),
@@ -112,16 +116,31 @@ final class DiagnoseIncidents extends Command
         }
 
         $automatic = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isActionable() && $a->finding->fix->isAutomatic()));
-        $alreadyFlagged = count(array_filter($plan, fn (PlannedAction $a): bool => ! $a->isActionable()));
+        $manual = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isActionable() && ! $a->finding->fix->isAutomatic()));
+        $inReview = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isInReview()));
+        $reviewed = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isReviewed()));
 
         $this->line(sprintf(
-            'Resumen: %d automáticas, %d a revisión manual, %d ya en revisión manual.',
+            'Resumen: %d automáticas, %d a revisión manual, %d ya en revisión manual%s.',
             $automatic,
-            count($plan) - $automatic - $alreadyFlagged,
-            $alreadyFlagged,
+            $manual,
+            $inReview,
+            $reviewed > 0 ? ", {$reviewed} revisadas" : '',
         ));
         $this->line(wordwrap('Regla: '.IncidentDiagnostics::RULE, 110));
         $this->newLine();
+    }
+
+    /** @param  list<PlannedAction>  $plan  every finding, none of them actionable */
+    private static function nothingToFix(array $plan): string
+    {
+        $reviewed = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isReviewed()));
+
+        return match ($reviewed) {
+            0 => 'Nada que corregir: lo que queda ya está marcado para revisión manual.',
+            count($plan) => 'Nada que corregir: lo que queda ya está revisado.',
+            default => 'Nada que corregir: lo que queda ya está marcado para revisión manual o revisado.',
+        };
     }
 
     /** @param  list<PlannedAction>  $pending */
@@ -132,19 +151,35 @@ final class DiagnoseIncidents extends Command
         foreach ($pending as $action) {
             $outcome = $diagnostics->apply($action);
             $applied += $outcome === FixOutcome::Applied ? 1 : 0;
+            $message = $outcome === FixOutcome::Applied && ! $action->finding->fix->isAutomatic()
+                ? 'marcada para revisión manual'
+                : $outcome->message();
 
             $this->line(OutputFormatter::escape(sprintf(
                 '#%d %s (%s): %s.',
                 $action->finding->incidentId,
-                $action->finding->incidentTitle,
+                self::untrusted($action->finding->incidentTitle),
                 $action->check->key(),
-                $outcome->message(),
+                $message,
             )));
         }
 
         $skipped = count($pending) - $applied;
         $this->newLine();
-        $this->line(sprintf('Resultado: %d aplicadas, %d omitidas.', $applied, $skipped));
+        $this->line(sprintf('Resultado: aplicadas %d, omitidas %d.', $applied, $skipped));
+
+        // A fix can uncover the next problem (voiding a duplicate exposes the log before it): plan again.
+        $remaining = count(array_filter($diagnostics->plan(), fn (PlannedAction $action): bool => $action->isActionable()));
+
+        if ($remaining > 0) {
+            $this->warn(sprintf(
+                'El diagnóstico, repetido después de aplicarlas, aún encuentra %d %s: vuelve a ejecutarlo.',
+                $remaining,
+                $remaining === 1 ? 'acción pendiente' : 'acciones pendientes',
+            ));
+
+            return self::FAILURE;
+        }
 
         if ($skipped > 0) {
             $this->warn('Vuelve a ejecutar el diagnóstico para ver cómo han quedado.');

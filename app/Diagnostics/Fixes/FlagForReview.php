@@ -12,7 +12,8 @@ use App\Models\IncidentLog;
 
 /**
  * Leaves a flagged_for_review entry on the incident and nothing else: a person decides what the truth is.
- * The panel shows the "Revisión manual" badge while the flag is active.
+ * The panel shows the "Revisión manual" badge while the flag is active; `incidents:review` voids it once a person
+ * has reviewed the case, and the voided flag is the record of that review.
  */
 final readonly class FlagForReview implements Fix
 {
@@ -44,16 +45,20 @@ final readonly class FlagForReview implements Fix
         ]);
     }
 
-    /** The active flag already left for the same finding (same check and evidence log), if any. */
+    /**
+     * The flag already left for the same finding (same check and evidence log), if any: an active one (still in
+     * review) before a voided one (reviewed). Either way the finding is handled and is never flagged again.
+     */
     public static function existingFor(Finding $finding): ?IncidentLog
     {
-        return IncidentLog::query()
+        $flags = IncidentLog::query()
             ->where('incident_id', $finding->incidentId)
             ->where('action', IncidentLogAction::FlaggedForReview)
-            ->active()
             ->orderBy('id')
             ->get()
-            ->first(fn (IncidentLog $flag): bool => ($flag->metadata['check'] ?? null) === $finding->check
+            ->filter(fn (IncidentLog $flag): bool => ($flag->metadata['check'] ?? null) === $finding->check
                 && ($flag->metadata['evidence_log_id'] ?? null) === $finding->evidenceLogId);
+
+        return $flags->first(fn (IncidentLog $flag): bool => ! $flag->isVoided()) ?? $flags->last();
     }
 }

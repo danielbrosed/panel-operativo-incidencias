@@ -15,7 +15,11 @@ enum IncidentLogAction: string
     /** resolved → open. Kept apart from status_changed so a reopen is never implicit. */
     case Reopened = 'reopened';
 
-    /** Missing step rebuilt by `incidents:diagnose --fix`; dated when the fix ran, metadata.inferred = true. */
+    /**
+     * Missing step written after the fact, always dated when it was written. Either rebuilt by
+     * `incidents:diagnose --fix` (actor sistema:diagnostico, metadata.inferred = true) or stated by a person with
+     * `incidents:review` (their name, metadata.reviewed = true and their reason).
+     */
     case StatusReconciled = 'status_reconciled';
 
     /** Inconsistency the diagnostic could not fix safely; a person has to decide. Does not change the status. */
@@ -27,7 +31,7 @@ enum IncidentLogAction: string
             self::Created => 'Incidencia abierta',
             self::StatusChanged => 'Cambio de estado',
             self::Reopened => 'Reapertura',
-            self::StatusReconciled => 'Estado conciliado por el diagnóstico',
+            self::StatusReconciled => 'Estado conciliado',
             self::FlaggedForReview => 'Marcada para revisión manual',
         };
     }

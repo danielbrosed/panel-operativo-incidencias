@@ -100,7 +100,7 @@ class InconsistenciesSeeder extends Seeder
 
     private function incidentId(string $title): int
     {
-        $id = DB::table('incidents')->where('title', $title)->value('id');
+        $id = DB::table('incidents')->where('title', $title)->orderBy('id')->value('id');
 
         if ($id === null) {
             throw new RuntimeException(

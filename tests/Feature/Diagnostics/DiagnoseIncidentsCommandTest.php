@@ -11,7 +11,6 @@ use App\Diagnostics\FixOutcome;
 use App\Diagnostics\IncidentDiagnostics;
 use App\Diagnostics\PlannedAction;
 use App\Enums\IncidentLogAction;
-use App\Enums\IncidentPriority;
 use App\Enums\IncidentStatus;
 use App\Models\Incident;
 use App\Models\IncidentLog;
@@ -25,6 +24,7 @@ use Tests\TestCase;
 class DiagnoseIncidentsCommandTest extends TestCase
 {
     use RefreshDatabase;
+    use WritesTrailsBySql;
 
     // The four cases broken on purpose by InconsistenciesSeeder, and a legitimate reopen that must be left alone.
     private const A = 'Fuga de agua en aseo de clientes';
@@ -160,7 +160,7 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $this->fixAnswering('no')->assertExitCode(1)->run();
         $this->assertSame($before, $this->snapshot());
 
-        $this->fixAnswering('yes')->expectsOutputToContain('Resultado: 4 aplicadas, 0 omitidas.')->assertExitCode(0)->run();
+        $this->fixAnswering('yes')->expectsOutputToContain('Resultado: aplicadas 4, omitidas 0.')->assertExitCode(0)->run();
         $this->assertSame(1, IncidentLog::query()->where('action', IncidentLogAction::StatusReconciled)->count());
         $this->assertSame(2, IncidentLog::query()->where('action', IncidentLogAction::FlaggedForReview)->count());
     }
@@ -168,30 +168,11 @@ class DiagnoseIncidentsCommandTest extends TestCase
     public function test_a_resolved_incident_whose_last_log_is_blocked_is_flagged_not_reconciled(): void
     {
         // blocked → resolved is not an allowed step (it goes back to review first): no single step explains the gap.
-        $openedAt = now()->subDay()->startOfSecond();
-        $id = DB::table('incidents')->insertGetId([
-            'title' => 'Escaparate sin iluminación',
-            'description' => 'Los focos del escaparate no encienden.',
-            'status' => IncidentStatus::Resolved->value,
-            'priority' => IncidentPriority::Low->value,
-            'requester_name' => 'Nerea Gil',
-            'due_at' => $openedAt->addHours(IncidentPriority::Low->slaHours()),
-            'created_at' => $openedAt,
-            'updated_at' => $openedAt,
+        $id = $this->writtenBySql('Escaparate sin iluminación', IncidentStatus::Resolved, [
+            [IncidentLogAction::Created, null, IncidentStatus::Open->value, 0],
+            [IncidentLogAction::StatusChanged, IncidentStatus::Open->value, IncidentStatus::InReview->value, 600],
+            [IncidentLogAction::StatusChanged, IncidentStatus::InReview->value, IncidentStatus::Blocked->value, 1200],
         ]);
-        DB::table('incident_logs')->insert(array_map(fn (array $step): array => [
-            'incident_id' => $id,
-            'action' => $step[0]->value,
-            'old_value' => $step[1]?->value,
-            'new_value' => $step[2]->value,
-            'user_name' => 'Marta Ruiz',
-            'metadata' => null,
-            'created_at' => $openedAt->addMinutes($step[3]),
-        ], [
-            [IncidentLogAction::Created, null, IncidentStatus::Open, 0],
-            [IncidentLogAction::StatusChanged, IncidentStatus::Open, IncidentStatus::InReview, 10],
-            [IncidentLogAction::StatusChanged, IncidentStatus::InReview, IncidentStatus::Blocked, 20],
-        ]));
 
         $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
 
@@ -216,6 +197,113 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $this->assertFalse(IncidentLog::query()->where('action', IncidentLogAction::StatusReconciled)->exists());
     }
 
+    public function test_a_logged_status_the_enum_does_not_know_is_flagged_instead_of_crashing(): void
+    {
+        $id = $this->writtenBySql('Fuente de agua sin presión', IncidentStatus::Open, [
+            [IncidentLogAction::Created, null, IncidentStatus::Open->value, 0],
+            [IncidentLogAction::StatusChanged, IncidentStatus::Open->value, 'archived', 600],
+        ]);
+
+        $this->assertSame(1, Artisan::call('incidents:diagnose'));
+        $this->assertStringContainsString('la deja «archived»', Artisan::output());
+
+        $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
+        $flags = IncidentLog::query()->where('incident_id', $id)->where('action', IncidentLogAction::FlaggedForReview)->get();
+        $this->assertEqualsCanonicalizing(
+            ['status_differs_from_last_log', 'duplicate_or_incoherent_log'],
+            $flags->map(fn (IncidentLog $flag): mixed => $flag->metadata['check'] ?? null)->all(),
+        );
+        $detail = $flags->first(fn (IncidentLog $flag): bool => ($flag->metadata['check'] ?? null) === 'status_differs_from_last_log')
+            ?->metadata['detail'] ?? null;
+        $this->assertIsString($detail);
+        $this->assertStringContainsString('no tiene un estado válido', $detail);
+    }
+
+    public function test_a_reconcile_after_a_future_dated_log_is_flagged_so_fix_stays_idempotent(): void
+    {
+        // A log written in the future (a session in another time zone, a typo in an import): a reconcile dated now
+        // would sort before it, so every --fix would add another one.
+        $id = $this->writtenBySql('Alarma de la trastienda sin batería', IncidentStatus::Resolved, [
+            [IncidentLogAction::Created, null, IncidentStatus::Open->value, 0],
+            [IncidentLogAction::StatusChanged, IncidentStatus::Open->value, IncidentStatus::InReview->value, now()->addDay()->startOfSecond()],
+        ]);
+
+        $fix = collect(app(IncidentDiagnostics::class)->plan())->sole()->finding->fix;
+        $this->assertInstanceOf(FlagForReview::class, $fix);
+        $this->assertStringContainsString('fecha futura', $fix->why);
+
+        $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
+        $this->assertStringContainsString('(resolved_without_resolution_log): marcada para revisión manual.', Artisan::output());
+        $afterFirstFix = $this->snapshot();
+        $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
+
+        $this->assertSame($afterFirstFix, $this->snapshot());
+        $this->assertFalse(IncidentLog::query()->where('incident_id', $id)->where('action', IncidentLogAction::StatusReconciled)->exists());
+        $this->assertSame(1, IncidentLog::query()->where('incident_id', $id)->where('action', IncidentLogAction::FlaggedForReview)->count());
+    }
+
+    public function test_no_reconcile_on_a_trail_with_a_duplicate_and_fix_reports_the_work_it_uncovers(): void
+    {
+        // Resolved by hand, and its last log is a double-click copy: the reconcile would build on the copy.
+        $id = $this->writtenBySql('Toldo de la entrada descolgado', IncidentStatus::Resolved, [
+            [IncidentLogAction::Created, null, IncidentStatus::Open->value, 0],
+            [IncidentLogAction::StatusChanged, IncidentStatus::Open->value, IncidentStatus::InReview->value, 600],
+            [IncidentLogAction::StatusChanged, IncidentStatus::Open->value, IncidentStatus::InReview->value, 601],
+        ]);
+
+        $fixes = collect(app(IncidentDiagnostics::class)->plan())->mapWithKeys(fn (PlannedAction $action): array => [
+            $action->check->key() => $action->finding->fix,
+        ]);
+        $this->assertInstanceOf(FlagForReview::class, $fixes['resolved_without_resolution_log']);
+        $this->assertStringContainsString('duplicado o incoherente', $fixes['resolved_without_resolution_log']->why);
+        $this->assertInstanceOf(VoidDuplicateLog::class, $fixes['duplicate_or_incoherent_log']);
+
+        // Voiding the copy uncovers a reconcile that is now safe: --fix applies everything it planned, then says so.
+        $this->assertSame(1, Artisan::call('incidents:diagnose', self::FIX));
+        $this->assertStringContainsString('aún encuentra 1 acción pendiente', Artisan::output());
+
+        $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
+        $reconciled = IncidentLog::query()->where('incident_id', $id)->where('action', IncidentLogAction::StatusReconciled)->sole();
+        $original = IncidentLog::query()->where('incident_id', $id)->active()->where('new_value', IncidentStatus::InReview->value)->sole();
+        $this->assertSame($original->id, $reconciled->metadata['evidence_log_id'] ?? null);
+
+        $settled = $this->snapshot();
+        $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
+        $this->assertSame($settled, $this->snapshot());
+    }
+
+    public function test_no_reconcile_on_a_trail_that_does_not_start_with_created(): void
+    {
+        // blocked → in_review alone would be reconciled, but nothing says how the incident got to "blocked".
+        $this->writtenBySql('Cámara frigorífica sin revisar', IncidentStatus::InReview, [
+            [IncidentLogAction::StatusChanged, IncidentStatus::InReview->value, IncidentStatus::Blocked->value, 0],
+        ]);
+
+        $fix = collect(app(IncidentDiagnostics::class)->plan())
+            ->sole(fn (PlannedAction $action): bool => $action->check->key() === 'status_differs_from_last_log')
+            ->finding->fix;
+
+        $this->assertInstanceOf(FlagForReview::class, $fix);
+        $this->assertStringContainsString('no empieza por el log de apertura', $fix->why);
+    }
+
+    public function test_text_from_the_database_reaches_the_terminal_without_control_characters_or_tags(): void
+    {
+        $this->writtenBySql("\e[2J<error>x</error>\u{202E}", IncidentStatus::Resolved, []);
+
+        Artisan::call('incidents:diagnose');
+        $report = Artisan::output();
+        Artisan::call('incidents:diagnose', self::FIX);
+        $fix = Artisan::output();
+
+        foreach ([$report, $fix] as $output) {
+            $this->assertStringNotContainsString("\e", $output);
+            $this->assertStringNotContainsString("\u{202E}", $output);
+            $this->assertStringNotContainsString('<error>', $output);
+            $this->assertStringContainsString('[2J‹error›x‹/error›', $output);
+        }
+    }
+
     private function incident(string $title): Incident
     {
         return Incident::query()->where('title', $title)->sole();
@@ -227,17 +315,5 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $this->assertInstanceOf(PendingCommand::class, $command);
 
         return $command->expectsConfirmation('¿Aplicar las 4 acciones previstas?', $answer);
-    }
-
-    /**
-     * Every column of every row of both tables, in id order.
-     *
-     * @return array<string, array<int, array<mixed>>>
-     */
-    private function snapshot(): array
-    {
-        return collect(['incidents', 'incident_logs'])->mapWithKeys(fn (string $table): array => [
-            $table => DB::table($table)->orderBy('id')->get()->map(fn (object $row): array => (array) $row)->all(),
-        ])->all();
     }
 }
