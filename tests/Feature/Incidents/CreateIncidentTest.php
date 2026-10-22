@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Incidents;
 
+use App\Actions\Incidents\CreateIncident;
+use App\Data\Actor;
+use App\Data\NewIncidentData;
 use App\Enums\IncidentLogAction;
 use App\Enums\IncidentPriority;
 use App\Enums\IncidentStatus;
 use App\Models\Incident;
+use App\Support\CurrentActor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -49,7 +53,7 @@ class CreateIncidentTest extends TestCase
         $this->assertSame(IncidentLogAction::Created, $log->action);
         $this->assertNull($log->old_value);
         $this->assertSame('open', $log->new_value);
-        $this->assertSame('Marta Ruiz', $log->user_name, 'first configured operator is the default actor');
+        $this->assertSame(CurrentActor::operatorsFromConfig()[0], $log->user_name, 'first configured operator is the default actor');
         $this->assertTrue($log->created_at->equalTo(now()));
     }
 
@@ -90,5 +94,21 @@ class CreateIncidentTest extends TestCase
         $incident = Incident::query()->sole();
         $this->assertNull($incident->assigned_to);
         $this->assertNull($incident->store);
+    }
+
+    public function test_the_action_trims_what_it_stores_when_called_without_the_http_middleware(): void
+    {
+        $incident = app(CreateIncident::class)->handle(new NewIncidentData(
+            title: '  Persiana metálica no baja ',
+            description: "\tSe queda atascada a media altura.\n",
+            priority: IncidentPriority::Low,
+            requesterName: ' Nerea Gil ',
+            store: '   ',
+        ), new Actor('Marta Ruiz'));
+
+        $this->assertSame(
+            ['Persiana metálica no baja', 'Se queda atascada a media altura.', 'Nerea Gil', null],
+            [$incident->title, $incident->description, $incident->requester_name, $incident->store],
+        );
     }
 }

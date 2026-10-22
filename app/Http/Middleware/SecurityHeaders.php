@@ -10,18 +10,15 @@ use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Baseline browser hardening for every response, plus a nonce-based Content-Security-Policy.
- *
- * The nonce is created before the request reaches the controller so that @vite, @viteReactRefresh
- * and the root view can stamp it on their tags. Inertia's initial page data travels in a
- * <script type="application/json"> block, which is never executed, so it needs no nonce.
+ * Baseline browser hardening for every response, plus a nonce-based Content-Security-Policy. The nonce is created
+ * before the controller runs so that @vite and the root view can stamp it on their tags.
  */
 class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
         // Fails closed: anything other than an explicit "report" or "off" (a typo included) enforces the policy.
-        $mode = config('security.csp');
+        $mode = config()->string('security.csp');
         $nonce = $mode === 'off' ? null : Vite::useCspNonce();
 
         $response = $next($request);

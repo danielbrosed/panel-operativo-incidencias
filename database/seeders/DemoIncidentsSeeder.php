@@ -16,9 +16,11 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 
 /**
- * Builds a realistic history through the same actions the panel uses, travelling in time for each step.
- * Every incident, log and comment is therefore consistent by construction: on this data alone,
- * `incidents:diagnose` finds nothing.
+ * Builds a realistic history through the same actions the panel uses, travelling in time for each step: consistent
+ * by construction, so on this data alone `incidents:diagnose` finds nothing.
+ *
+ * @phpstan-type Step array{hours: int|float, to: string, actor: string, reason: string|null}
+ * @phpstan-type Comment array{hours: int|float, actor: string, body: string}
  */
 class DemoIncidentsSeeder extends Seeder
 {
@@ -40,8 +42,8 @@ class DemoIncidentsSeeder extends Seeder
                     store: $row['store'],
                 ), new Actor($row['opened_by']));
 
-                foreach ($this->eventsInOrder($row) as [$hours, $event]) {
-                    $this->travelTo($openedAt->addMinutes((int) round($hours * 60)));
+                foreach ($this->eventsInOrder($row) as $event) {
+                    $this->travelTo($openedAt->addMinutes((int) round($event['hours'] * 60)));
 
                     if ($event['type'] === 'step') {
                         $incident = $changeStatus->handle(
@@ -64,9 +66,8 @@ class DemoIncidentsSeeder extends Seeder
 
     /**
      * @return list<array{title: string, description: string, priority: string, requester: string, store: string,
-     *     assigned_to: string|null, opened_by: string, opened_hours_ago: int|float,
-     *     steps: list<array{0: int|float, 1: string, 2: string, 3: string|null}>,
-     *     comments: list<array{0: int|float, 1: string, 2: string}>}>
+     *     assigned_to: string|null, opened_by: string, opened_hours_ago: int|float, steps: list<Step>,
+     *     comments: list<Comment>}>
      */
     private function dataset(): array
     {
@@ -74,22 +75,20 @@ class DemoIncidentsSeeder extends Seeder
     }
 
     /**
-     * Steps and comments of one incident, merged and sorted by time.
+     * Steps and comments of one incident, merged and sorted by time (a step first when both share a time).
      *
-     * @param  array{steps: list<array{0: int|float, 1: string, 2: string, 3: string|null}>, comments: list<array{0: int|float, 1: string, 2: string}>}  $row
-     * @return list<array{0: int|float, 1: array{type: 'step', to: string, actor: string, reason: string|null}|array{type: 'comment', actor: string, body: string}}>
+     * @param  array{steps: list<Step>, comments: list<Comment>}  $row
+     * @return list<array{type: 'step', hours: int|float, to: string, actor: string, reason: string|null}
+     *     |array{type: 'comment', hours: int|float, actor: string, body: string}>
      */
     private function eventsInOrder(array $row): array
     {
-        $events = [];
-        foreach ($row['steps'] as [$hours, $to, $actor, $reason]) {
-            $events[] = [$hours, ['type' => 'step', 'to' => $to, 'actor' => $actor, 'reason' => $reason]];
-        }
-        foreach ($row['comments'] as [$hours, $actor, $body]) {
-            $events[] = [$hours, ['type' => 'comment', 'actor' => $actor, 'body' => $body]];
-        }
+        $events = [
+            ...array_map(fn (array $step): array => ['type' => 'step', ...$step], $row['steps']),
+            ...array_map(fn (array $comment): array => ['type' => 'comment', ...$comment], $row['comments']),
+        ];
 
-        usort($events, fn (array $a, array $b): int => $a[0] <=> $b[0]);
+        usort($events, fn (array $a, array $b): int => $a['hours'] <=> $b['hours']);
 
         return $events;
     }

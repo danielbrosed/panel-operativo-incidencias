@@ -31,6 +31,7 @@ export function CommentForm({ url }: { url: string }) {
                         ref={bodyRef}
                         name="body"
                         required
+                        // Mirrors the rule in StoreIncidentCommentRequest.
                         maxLength={2000}
                         placeholder="Qué se ha hecho, qué falta o con quién se ha hablado."
                         value={form.data.body}

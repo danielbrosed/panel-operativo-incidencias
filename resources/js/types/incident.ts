@@ -27,6 +27,8 @@ export interface Transition {
     action_label: string;
     requires_reason: boolean;
     requires_confirmation: boolean;
+    /** Moves the incident to «Bloqueada»: its confirm button is the danger one. */
+    destructive: boolean;
 }
 
 export interface Incident {
@@ -47,7 +49,6 @@ export interface Incident {
 
 export interface IncidentDetail extends Omit<Incident, 'links'> {
     description: string;
-    updated_at: string;
     links: { self: string; status: string; comments: string };
 }
 
@@ -55,8 +56,6 @@ export interface TimelineLogEntry {
     type: 'log';
     id: number;
     action: Option<IncidentLogActionValue>;
-    old_value: string | null;
-    new_value: string | null;
     old_label: string | null;
     new_label: string | null;
     user_name: string;
@@ -64,7 +63,7 @@ export interface TimelineLogEntry {
     detail: string | null;
     inferred: boolean;
     created_at: string;
-    voided: { at: string; reason: string | null } | null;
+    voided: { reason: string } | null;
 }
 
 export interface TimelineCommentEntry {

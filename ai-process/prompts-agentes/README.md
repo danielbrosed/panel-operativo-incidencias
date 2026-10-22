@@ -5,7 +5,9 @@
 
 Durante el trabajo, la sesión principal de Claude Code repartió tareas a agentes con un encargo escrito. Aquí están
 esos encargos **literales**, extraídos de las transcripciones de la sesión. Solo se han sustituido las rutas de mi
-máquina por marcadores entre `< >` (`<repo>`, `<scratchpad>`, `<tools>`…). Están en inglés porque así se escribieron.
+máquina por marcadores entre `< >` (`<repo>`, `<scratchpad>`, `<tools>`…). Están en el idioma en que se escribieron:
+casi todos en inglés y los arreglos de la última ronda, en español. Cuando la sesión añadió algo a un agente mientras
+trabajaba, va debajo del encargo, también literal.
 
 Sirven para ver cómo se acotó cada tarea:
 - qué ficheros y qué base de datos podía tocar cada agente;
@@ -29,6 +31,10 @@ Sirven para ver cómo se acotó cada tarea:
 | Arreglos | [12 · Integridad de datos y cierre de casos marcados](12-arreglos-integridad-y-diagnostico.md) |
 | Arreglos | [13 · Frontend tras la revisión](13-arreglos-frontend.md) |
 | Auditoría | [14 · Pasada final con mi agente de seguridad, solo informe](14-auditoria-agente-security.md) |
+| Última ronda | [15 · Revisión de calidad como responsable técnico de Optima Retail](15-revision-final-calidad.md) |
+| Última ronda | [16 · Segunda revisión de seguridad](16-revision-final-seguridad.md) |
+| Última ronda | [17 · Arreglos de backend](17-arreglos-finales-backend.md) |
+| Última ronda | [18 · Arreglos de frontend](18-arreglos-finales-frontend.md) |
 
 Las fases 0 a 2 (entorno, esqueleto y dominio), la integración y los arreglos de seguridad los hizo la sesión
 principal directamente, sin encargos a agentes.

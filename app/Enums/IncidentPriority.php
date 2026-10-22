@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-/**
- * Same vocabulary as Optima Retail's own "Abrir incidencia" form: green, yellow and red codes.
- */
+use App\Enums\Concerns\HasOption;
+
+/** Same vocabulary as Optima Retail's own "Abrir incidencia" form: green, yellow and red codes. */
 enum IncidentPriority: string
 {
+    use HasOption;
+
     case Low = 'low';
     case Medium = 'medium';
     case High = 'high';

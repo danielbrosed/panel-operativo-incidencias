@@ -45,17 +45,17 @@ abstract class LatestTrailLogCheck extends SqlCheck
         $evidenceLogId = $row->last_log_id === null ? null : (int) $row->last_log_id;
 
         return new Finding(
-            check: $this->key(),
+            checkKey: $this->key(),
             incidentId: (int) $row->incident_id,
             incidentTitle: $row->title,
             evidenceLogId: $evidenceLogId,
             detail: $evidenceLogId === null
-                ? sprintf('Está «%s», pero no tiene ningún log de estado activo.', self::label($row->status))
+                ? sprintf('Está «%s», pero no tiene ningún log de estado activo.', IncidentStatus::lowerLabelOf($row->status))
                 : sprintf(
                     'Está «%s», pero su último log de estado (#%d) la deja «%s».',
-                    self::label($row->status),
+                    IncidentStatus::lowerLabelOf($row->status),
                     $evidenceLogId,
-                    self::label($row->logged_status),
+                    IncidentStatus::lowerLabelOf($row->logged_status),
                 ),
             // tryFrom on both sides: a value written by SQL that is not in the enum is a finding, never a crash.
             fix: self::fixFor(
@@ -66,7 +66,7 @@ abstract class LatestTrailLogCheck extends SqlCheck
         );
     }
 
-    /** The correction rule (see App\Diagnostics\IncidentDiagnostics): one allowed step without reason, or a person. */
+    /** The correction rule, IncidentDiagnostics::RULE: one allowed step without a reason, or else a person. */
     private static function fixFor(?int $evidenceLogId, ?IncidentStatus $logged, ?IncidentStatus $current): Fix
     {
         if ($current !== null && $logged !== null && $logged->canTransitionTo($current) && ! $logged->requiresReason($current)) {
@@ -79,13 +79,13 @@ abstract class LatestTrailLogCheck extends SqlCheck
             $logged === null => 'El último log no tiene un estado válido: no se puede deducir el paso que falta.',
             ! $logged->canTransitionTo($current) => sprintf(
                 'De «%s» a «%s» no hay un paso permitido: faltan pasos y no se sabe cuándo ni quién los dio.',
-                self::label($logged->value),
-                self::label($current->value),
+                $logged->lowerLabel(),
+                $current->lowerLabel(),
             ),
             default => sprintf(
                 'Pasar de «%s» a «%s» exige un motivo que no consta en ningún sitio.',
-                self::label($logged->value),
-                self::label($current->value),
+                $logged->lowerLabel(),
+                $current->lowerLabel(),
             ),
         });
     }

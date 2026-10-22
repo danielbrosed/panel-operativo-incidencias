@@ -13,13 +13,18 @@ Laravel 13 · PHP 8.3+ · MySQL 8.4 · Inertia v3 + React 19 + TypeScript · Tai
 | Tests | `php artisan test` (MySQL `incidents_testing`) |
 | Todo antes de commit | `composer check` (Pint, Larastan nivel 8, tsc, ESLint, Prettier, tests) |
 | Diagnóstico de datos | `php artisan incidents:diagnose` (dry-run) · `--fix` · `-v` para ver el SQL |
-| Cerrar un caso marcado | `php artisan incidents:review {id} --actor="…" --reason="…"` (lo hace una persona, nunca un agente) |
+| Cerrar un caso marcado | `php artisan incidents:review {id} --actor="…" --reason="…"` (sobre datos reales lo hace una persona, nunca un agente) |
 
 ## Dónde vive cada cosa
 
 - `app/Enums/`: estados, prioridades y acciones de log. **Única fuente de verdad**, también de las transiciones.
-- `app/Actions/Incidents/`: las únicas clases que escriben incidencias y su trazabilidad.
+- `app/Actions/Incidents/`: las únicas clases que escriben incidencias y su trazabilidad, desde el panel y desde
+  `incidents:review`. El diagnóstico escribe solo desde `app/Diagnostics/Fixes/`.
 - `app/Http/`: controladores finos (validan, resuelven el actor y delegan), FormRequests y API Resources.
+- `app/Queries/`: las lecturas del listado y del historial. `app/Data/`: objetos de datos (filtros, actor, resultados).
+- `app/Support/`: el actor actual (`CurrentActor`), el texto que no es de fiar (`UntrustedText`), los avisos (`Toast`)
+  y el escapado de `LIKE` (`Like`).
+  `app/Rules/CleanText` valida ese texto en los formularios.
 - `app/Diagnostics/` + `app/Console/Commands/`: diagnóstico y corrección de inconsistencias (ejercicio 5).
 - `resources/js/pages/` (páginas Inertia), `components/`, `hooks/`, `types/incident.ts` (espejo de los Resources).
 - `database/seeders/`: datos de ejemplo deterministas + inconsistencias sembradas a propósito.
@@ -33,8 +38,8 @@ Laravel 13 · PHP 8.3+ · MySQL 8.4 · Inertia v3 + React 19 + TypeScript · Tai
    parámetro (al crear no hay nada que bloquear).
 4. `incident_logs` es solo inserción. Nunca `update` ni `delete`; un log erróneo se anula con `IncidentLog::void()`.
    Nunca se atrasa una fecha ni se inventa un autor.
-5. Los errores de dominio se convierten en `ValidationException` sobre el campo que corresponde. Nunca se devuelve
-   un 409 a una petición Inertia (Inertia lo reserva para sus redirecciones).
+5. Los errores de dominio se convierten en `ValidationException` sobre el campo que corresponde (422), nunca en un
+   409: Inertia lo reserva para sus redirecciones.
 6. El frontend no conoce la máquina de estados: el servidor manda en cada incidencia sus transiciones permitidas.
 7. Interfaz, mensajes y README en español con tildes; código, tablas y valores en inglés.
 8. Tests contra MySQL (`*_testing`), nunca SQLite: bloqueos, CHECK, JSON y funciones ventana son parte de lo probado.

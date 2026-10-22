@@ -15,11 +15,8 @@ use Illuminate\Support\Facades\DB;
 final class ChangeIncidentStatus
 {
     /**
-     * The only way an incident changes status.
-     *
-     * The row is locked (SELECT … FOR UPDATE) and re-read inside the transaction, so two people acting at the
-     * same time are serialised: the second one sees the first one's result and gets a clear conflict instead
-     * of a duplicated or contradictory log. The status and its log are committed together or not at all.
+     * The only way an incident changes status. The row is locked and re-read, so two people acting at once are
+     * serialised and the second one gets a clear error instead of a duplicated or contradictory log.
      *
      * @param  IncidentStatus  $expected  the status the person was looking at when they acted
      *
@@ -34,7 +31,7 @@ final class ChangeIncidentStatus
         Actor $actor,
         ?string $reason = null,
     ): Incident {
-        $reason = $reason !== null && trim($reason) !== '' ? trim($reason) : null;
+        $reason = filled($reason) ? trim($reason) : null;
 
         return DB::transaction(function () use ($incident, $to, $expected, $actor, $reason): Incident {
             $locked = Incident::query()->whereKey($incident->getKey())->lockForUpdate()->firstOrFail();

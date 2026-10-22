@@ -16,18 +16,11 @@ function toQuery(filters: IncidentFilters): Record<string, string> {
     return query;
 }
 
-/**
- * The only place that fires filter visits. The URL is the source of truth for the filters: each change is a
- * partial Inertia reload of this same page (list, counters and the filters echoed by the server) that replaces
- * the history entry, so there is no full page load and no client-side copy of the data.
- *
- * Local state is limited to two things:
- *  - the search text, initialised once from the URL and never overwritten by a response (a slow response would
- *    otherwise clobber what the person is still typing);
- *  - the filters of the visit in flight, shown straight away so a control does not snap back while it loads.
- */
+/** The only place that fires filter visits: the URL holds the filters, and each change is a partial reload of the page. */
 export function useIncidentFilters(serverFilters: IncidentFilters, indexUrl: string) {
+    // Read once from the URL and never overwritten by a response, which would clobber what is still being typed.
     const [search, setSearch] = useState(serverFilters.q ?? '');
+    // The filters of the visit in flight, shown at once so a control does not snap back while it loads.
     const [pending, setPending] = useState<IncidentFilters | null>(null);
     const debounce = useRef<number | undefined>(undefined);
     const filters = pending ?? serverFilters;
@@ -73,5 +66,3 @@ export function useIncidentFilters(serverFilters: IncidentFilters, indexUrl: str
         },
     };
 }
-
-export type IncidentFiltersState = ReturnType<typeof useIncidentFilters>;

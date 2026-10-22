@@ -36,11 +36,9 @@ return new class extends Migration
 
         // Same defence in depth as incidents.status: the model casts `action` to an enum, so an unknown value written
         // by SQL would break every screen that reads the trail. A new action means a new migration replacing this.
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE incident_logs ADD CONSTRAINT incident_logs_action_check CHECK (action IN ('created', 'status_changed', 'reopened', 'status_reconciled', 'flagged_for_review'))");
-            // A voided row always says why, and a reason never sits on an active row.
-            DB::statement('ALTER TABLE incident_logs ADD CONSTRAINT incident_logs_void_check CHECK ((voided_at IS NULL) = (voided_reason IS NULL))');
-        }
+        DB::statement("ALTER TABLE incident_logs ADD CONSTRAINT incident_logs_action_check CHECK (action IN ('created', 'status_changed', 'reopened', 'status_reconciled', 'flagged_for_review'))");
+        // A voided row always says why, and a reason never sits on an active row.
+        DB::statement('ALTER TABLE incident_logs ADD CONSTRAINT incident_logs_void_check CHECK ((voided_at IS NULL) = (voided_reason IS NULL))');
     }
 
     public function down(): void

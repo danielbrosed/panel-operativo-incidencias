@@ -40,9 +40,8 @@ export function CreateIncidentForm({ id, hidden, url, options }: CreateIncidentF
         if (form.processing) return;
         form.post(url, {
             errorBag: 'createIncident',
-            // With errors the page keeps its state (what was typed, the form open); an expired session or the rate
-            // limit also arrive as an error, on "request". On success it remounts: the server redirects to the
-            // unfiltered list with the new incident first, so the form, the search box and the filters start clean.
+            // An error (an expired session or the rate limit too, on "request") keeps the page and what was typed.
+            // Success remounts it on the unfiltered list with the new incident first: form, search and filters start clean.
             preserveState: 'errors',
             preserveScroll: 'errors',
             onError: (errors) => focusFirstError(formRef.current, errors),
@@ -55,6 +54,7 @@ export function CreateIncidentForm({ id, hidden, url, options }: CreateIncidentF
             <p className="mt-1 text-sm text-muted">
                 Se abre en estado «Abierta» y queda en el historial a tu nombre, con fecha y hora.
             </p>
+            {/* The maxLength values mirror the rules in StoreIncidentRequest. */}
             <form ref={formRef} noValidate onSubmit={submit} className="mt-5 grid gap-4 md:grid-cols-2">
                 <Field id="incident-title" label="Título" error={form.errors.title} className="md:col-span-2">
                     {(control) => (

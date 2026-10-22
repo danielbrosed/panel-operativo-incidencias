@@ -12,7 +12,7 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
                     <span
                         aria-hidden="true"
                         className={cx(
-                            'absolute top-1.5 -left-[7px] size-3 rounded-full ring-4 ring-white',
+                            'absolute top-1.5 -left-1.75 size-3 rounded-full ring-4 ring-white',
                             entry.type === 'comment' ? 'border-2 border-navy bg-white' : 'bg-brand',
                         )}
                     />
@@ -30,9 +30,7 @@ function LogEntry({ entry }: { entry: TimelineLogEntry }) {
 
     return (
         <div className="flex flex-col gap-1">
-            {move && (
-                <span className="text-xs font-semibold tracking-wide text-muted uppercase">{entry.action.label}</span>
-            )}
+            {move && <span className="eyebrow">{entry.action.label}</span>}
             <p className="flex flex-wrap items-center gap-2">
                 <Heading className={cx('font-semibold', entry.voided ? 'text-muted' : 'text-navy')}>
                     {move ?? entry.action.label}
@@ -46,11 +44,7 @@ function LogEntry({ entry }: { entry: TimelineLogEntry }) {
                 </blockquote>
             )}
             {entry.detail && <p className="text-sm text-muted">{entry.detail}</p>}
-            {entry.voided && (
-                <p className="text-sm font-medium text-danger">
-                    Anulado: {entry.voided.reason ?? 'sin motivo indicado'}
-                </p>
-            )}
+            {entry.voided && <p className="text-sm font-medium text-danger">Anulado: {entry.voided.reason}</p>}
         </div>
     );
 }
@@ -58,7 +52,7 @@ function LogEntry({ entry }: { entry: TimelineLogEntry }) {
 function CommentEntry({ entry }: { entry: TimelineCommentEntry }) {
     return (
         <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold tracking-wide text-muted uppercase">Comentario</span>
+            <span className="eyebrow">Comentario</span>
             <Byline name={entry.author_name} iso={entry.created_at} />
             <p className="mt-1 rounded-r-field bg-surface px-4 py-3 text-sm leading-relaxed whitespace-pre-line text-ink">
                 {entry.body}

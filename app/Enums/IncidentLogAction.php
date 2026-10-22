@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasOption;
+
 enum IncidentLogAction: string
 {
+    use HasOption;
+
     /** null → open, written in the same transaction that creates the incident. */
     case Created = 'created';
 
@@ -16,9 +20,8 @@ enum IncidentLogAction: string
     case Reopened = 'reopened';
 
     /**
-     * Missing step written after the fact, always dated when it was written. Either rebuilt by
-     * `incidents:diagnose --fix` (actor sistema:diagnostico, metadata.inferred = true) or stated by a person with
-     * `incidents:review` (their name, metadata.reviewed = true and their reason).
+     * Missing step written after the fact and dated when it was written: by `incidents:diagnose --fix` (signed by
+     * config('incidents.diagnostics.actor'), metadata.inferred) or by a person with `incidents:review` (metadata.reviewed).
      */
     case StatusReconciled = 'status_reconciled';
 

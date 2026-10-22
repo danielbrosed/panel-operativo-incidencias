@@ -11,14 +11,14 @@ Si cambias una pieza, recorre la lista entera en el mismo commit.
 ## Añadir o renombrar un estado
 
 1. `app/Enums/IncidentStatus.php`: el caso, `label()`, `allowedTransitions()`, `requiresReason()`,
-   `requiresConfirmation()` y `actionLabel()` para cada transición nueva.
+   `requiresConfirmation()`, `isDestructive()` y `actionLabel()` para cada transición nueva.
 2. **Migración nueva** que sustituya el `CHECK` de `incidents.status`. Nunca se edita una migración ya publicada:
    las migraciones son historia y los valores van escritos en ellas a propósito.
 3. Frontend: la unión de valores en `resources/js/types/incident.ts`; los tokens `--color-status-*` de
-   `resources/css/app.css`; el tono e icono de `components/status-badge.tsx`, el tinte de fila de
-   `components/incident-cells.tsx` y el tono del botón de confirmación de `components/status-actions.tsx`.
-   `statusTones` está tipado como `Record<IncidentStatusValue, …>`, así que un estado sin tono no compila; el tinte y
-   el tono del botón comparan valores concretos y hay que revisarlos a mano.
+   `resources/css/app.css`; el tono e icono de `components/status-badge.tsx` y el tinte de fila de
+   `components/incident-row-parts.tsx`. `statusTones` está tipado como `Record<IncidentStatusValue, …>`, así que un
+   estado sin tono no compila; el tinte compara valores concretos y hay que revisarlo a mano. El tono del botón de
+   confirmación no se toca: lo manda el servidor (`destructive`, de `isDestructive()`).
 4. Contadores: `IncidentListQuery::countsByStatus()` devuelve todos los casos del enum; comprueba que la UI los pinta.
 5. Diagnóstico: el SQL de `app/Diagnostics/Checks/` usa los valores del enum; revisa la lista de transiciones legales.
 6. Tests: la matriz de `tests/Unit/IncidentStatusTest.php` cubre todos los pares `desde → a`; añade los nuevos.
@@ -40,5 +40,11 @@ Si cambias una pieza, recorre la lista entera en el mismo commit.
 
 ## Comprobación final
 
-`composer check` en verde y `php artisan migrate:fresh --seed && php artisan incidents:diagnose` mostrando solo las
-inconsistencias sembradas a propósito.
+`composer check` en verde, y el diagnóstico mostrando solo las inconsistencias sembradas a propósito. Hazlo sobre
+una base desechable, nunca sobre la de `.env`: `migrate:fresh` la borra sin preguntar fuera de producción.
+
+```bash
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS incidents_check"
+DB_DATABASE=incidents_check php artisan migrate:fresh --seed
+DB_DATABASE=incidents_check php artisan incidents:diagnose
+```

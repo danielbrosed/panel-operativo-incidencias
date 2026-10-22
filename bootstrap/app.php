@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Exceptions\Incidents\IncidentDomainException;
+use App\Exceptions\Incidents\IncidentRuleViolation;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
+use App\Support\Toast;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
 
         // Outside local and testing, only the host of APP_URL (and its subdomains) is accepted: absolute URLs built
-        // from a forged Host header would otherwise point assets and redirects elsewhere.
+        // from a forged Host header would otherwise point assets and redirects elsewhere. Local: AppServiceProvider.
         $middleware->trustHosts();
 
         $middleware->web(append: [
@@ -30,32 +30,34 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Business-rule rejections become validation errors on the field that caused them: an Inertia request
-        // gets a redirect back with the error in the same form; a JSON client gets 422, or 409 for a conflict.
-        // (A plain 409 must never reach Inertia: its client reserves 409 for its own redirects.)
+        // A business-rule rejection is a validation error (422) on the field that caused it: an Inertia request is
+        // redirected back with the error shown in the same form.
         $exceptions->map(
-            IncidentDomainException::class,
-            fn (IncidentDomainException $e): ValidationException => ValidationException::withMessages([
+            IncidentRuleViolation::class,
+            fn (IncidentRuleViolation $e): ValidationException => ValidationException::withMessages([
                 $e->field() => $e->getMessage(),
-            ])->status($e->isConflict() ? 409 : 422),
+            ]),
         );
 
-        // Expired session (419) and rate limit (429): go back with a readable message instead of an error page. It
-        // travels as a validation error too (key "request"), so the form treats it as a failure and keeps what the
-        // person typed instead of resetting as it does on success.
+        // Expired session (419) and rate limit (429): back with a readable message instead of an error page. It
+        // travels as a validation error too (key "request"), so the form keeps what the person typed.
         $exceptions->respond(function (Response $response, Throwable $e, Request $request): Response {
             $status = $response->getStatusCode();
 
-            if ($request->header('X-Inertia') && in_array($status, [419, 429], true)) {
-                $message = $status === 419
-                    ? 'La sesión ha caducado. Vuelve a intentarlo.'
-                    : 'Demasiadas acciones seguidas. Espera un momento y vuelve a intentarlo.';
-
-                Inertia::flash('toast', ['type' => 'error', 'message' => $message]);
-
-                return back()->withErrors(['request' => $message]);
+            if (! $request->inertia() || ! in_array($status, [419, 429], true)) {
+                return $response;
             }
 
-            return $response;
+            $message = $status === 419
+                ? 'La sesión ha caducado. Vuelve a intentarlo.'
+                : 'Demasiadas acciones seguidas. Espera un momento y vuelve a intentarlo.';
+
+            Toast::error($message);
+
+            // Back to the same page on this host: only the path and the query of the Referer are kept.
+            $query = parse_url(url()->previous(), PHP_URL_QUERY);
+
+            return redirect()->to(url()->previousPath().(is_string($query) ? "?{$query}" : ''))
+                ->withErrors(['request' => $message]);
         });
     })->create();

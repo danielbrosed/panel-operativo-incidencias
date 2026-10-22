@@ -10,9 +10,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Shape of the request only. The business rules (legal transition, reason, stale status) are enforced again
- * by ChangeIncidentStatus under the row lock, where they are authoritative; the reason check here just gives
- * an early, field-level error.
+ * Shape of the request only. ChangeIncidentStatus enforces the business rules again under the row lock, where they
+ * are authoritative; the reason check here just gives an early, field-level error.
  */
 class ChangeIncidentStatusRequest extends FormRequest
 {
@@ -52,13 +51,10 @@ class ChangeIncidentStatusRequest extends FormRequest
 
     public function reason(): ?string
     {
-        return $this->filled('reason') ? $this->string('reason')->trim()->toString() : null;
+        return $this->filled('reason') ? $this->string('reason')->toString() : null;
     }
 
-    /**
-     * Runs while the rules are being built, before they have validated anything: crafted input (arrays, objects)
-     * must not reach IncidentStatus::tryFrom(), which only accepts strings.
-     */
+    /** Runs before any rule has validated: crafted input (arrays) must not reach tryFrom(), which only takes strings. */
     private function requiresReason(): bool
     {
         $from = $this->input('expected_status');

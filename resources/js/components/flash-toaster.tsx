@@ -13,10 +13,8 @@ const NETWORK_ERROR = 'Sin conexión con el servidor. Comprueba la red y vuelve 
 const SERVER_ERROR = 'Algo ha fallado en el servidor. Vuelve a intentarlo en un momento.';
 
 /**
- * The only place that shows notices: the server's one-off `toast` flash (the first may arrive with the page itself,
- * later ones through the router's "flash" event) and the requests that never got a usable answer (no network, or a
- * server error page instead of an Inertia response). A newer toast with the same text replaces the older one, so it
- * is announced again without piling up.
+ * The only place that shows notices: the server's `toast` flash and the requests that got no usable answer. A newer
+ * toast with the same text replaces the older one, so it is announced again without piling up.
  */
 export function FlashToaster() {
     const { flash } = usePage();

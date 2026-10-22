@@ -49,10 +49,10 @@ de ejemplo son ficticias.
 
 | Requisito del enunciado | Dónde está |
 |---|---|
-| **Ej. 1** · Pantalla principal | `/incidents`: [`pages/incidents/index.tsx`](resources/js/pages/incidents/index.tsx), con la cabecera en [`layouts/app-layout.tsx`](resources/js/layouts/app-layout.tsx), el alta en [`create-incident-form.tsx`](resources/js/components/create-incident-form.tsx) y el cambio de estado en cada fila ([`status-actions.tsx`](resources/js/components/status-actions.tsx)). Historial en `/incidents/{id}` ([`show.tsx`](resources/js/pages/incidents/show.tsx)) |
+| **Ej. 1** · Pantalla principal | `/incidents`: [`pages/incidents/index.tsx`](resources/js/pages/incidents/index.tsx), con la cabecera en [`layouts/app-layout.tsx`](resources/js/layouts/app-layout.tsx), el alta en [`create-incident-form.tsx`](resources/js/components/create-incident-form.tsx) y el cambio de estado en cada fila ([`status-actions.tsx`](resources/js/components/status-actions.tsx), con un único formulario y un único diálogo por página en [`use-status-change.tsx`](resources/js/hooks/use-status-change.tsx)). Historial en `/incidents/{id}` ([`show.tsx`](resources/js/pages/incidents/show.tsx)) |
 | **Ej. 2** · Modelo de datos | [`database/migrations/`](database/migrations) (claves foráneas, índices y CHECK), [`app/Enums/`](app/Enums) (estados centralizados) y [`app/Models/`](app/Models) |
 | **Ej. 3** · Acciones y validación | [`app/Actions/Incidents/`](app/Actions/Incidents), [`IncidentListQuery`](app/Queries/IncidentListQuery.php), [`app/Http/Requests/`](app/Http/Requests), [`bootstrap/app.php`](bootstrap/app.php) (errores de dominio en su campo) y [`lang/es/`](lang/es) |
-| **Ej. 4** · Interacción | Las cinco opciones: filtro sin recarga ([`use-incident-filters.ts`](resources/js/hooks/use-incident-filters.ts)), confirmación ([`confirm-dialog.tsx`](resources/js/components/confirm-dialog.tsx)), contadores ([`status-counters.tsx`](resources/js/components/status-counters.tsx)), resaltado de vencidas y bloqueadas ([`incident-cells.tsx`](resources/js/components/incident-cells.tsx)) y componentes React |
+| **Ej. 4** · Interacción | Las cinco opciones: filtro sin recarga ([`use-incident-filters.ts`](resources/js/hooks/use-incident-filters.ts)), confirmación ([`confirm-dialog.tsx`](resources/js/components/confirm-dialog.tsx)), contadores ([`status-counters.tsx`](resources/js/components/status-counters.tsx)), resaltado de vencidas y bloqueadas ([`incident-row-parts.tsx`](resources/js/components/incident-row-parts.tsx)) y componentes React |
 | **Ej. 5** · Diagnóstico | `php artisan incidents:diagnose` ([comando](app/Console/Commands/DiagnoseIncidents.php) y [`app/Diagnostics/`](app/Diagnostics)), datos rotos a propósito en [`InconsistenciesSeeder`](database/seeders/InconsistenciesSeeder.php), explicación [más abajo](#diagnóstico-de-inconsistencias-ejercicio-5) |
 | **Uso de IA** | [`ai-process/`](ai-process/README.md), [`CLAUDE.md`](CLAUDE.md) y [`.claude/skills/`](.claude/skills) |
 | **Entrega** | `.env.example` sin credenciales, seeders, este README, [tests](tests) y [CI](.github/workflows/ci.yml) |
@@ -178,11 +178,12 @@ flowchart LR
   bloquea la fila (`SELECT … FOR UPDATE`) y trabaja con la copia recién leída. Comprueba que el estado sigue siendo el
   que vio la persona, la transición y el motivo, y guarda estado y log en la misma transacción. `CreateIncident` escribe
   la incidencia y su log `created` juntos. `AddIncidentComment` es una única inserción que no toca la incidencia, así
-  que no necesita transacción.
-- **Los errores salen en su campo.** Los errores de dominio se convierten en errores de validación sobre `status` o
-  `reason` y vuelven al mismo formulario. Un cliente JSON recibe 422, o 409 si el estado estaba desactualizado; a
-  Inertia nunca se le manda un 409, que reserva para sus redirecciones. Una sesión caducada (419) o el exceso de
-  peticiones (429) vuelven atrás con un aviso.
+  que no necesita transacción. `ReviewFlaggedIncident` es el cierre humano de un caso marcado (`incidents:review`).
+  Fuera de las acciones, solo escriben las correcciones del diagnóstico ([`app/Diagnostics/Fixes/`](app/Diagnostics/Fixes)),
+  con el mismo bloqueo.
+- **Los errores salen en su campo.** Los errores de dominio se convierten en errores de validación (422) sobre `status`
+  o `reason` y vuelven al mismo formulario. Nunca se devuelve un 409, que Inertia reserva para sus redirecciones. Una
+  sesión caducada (419) o el exceso de peticiones (429) vuelven atrás con un aviso y sin perder lo escrito.
 
 ### Máquina de estados
 
@@ -269,13 +270,13 @@ erDiagram
   servidor como props de Inertia, tipadas en [`types/incident.ts`](resources/js/types/incident.ts) (espejo de los API
   Resources): el cliente no guarda ninguna copia de las incidencias ni de la máquina de estados. Lo único local:
   - el texto de la búsqueda mientras se escribe y los filtros de la visita en curso (`use-incident-filters.ts`);
-  - los formularios (`useForm` en `create-incident-form.tsx`, `status-actions.tsx` y `comment-form.tsx`);
+  - los formularios (`useForm` en `create-incident-form.tsx`, `use-status-change.tsx` y `comment-form.tsx`);
   - qué diálogo de confirmación está abierto y si el formulario de alta está desplegado;
   - el operador que se está guardando (`actor-switcher.tsx`) y el aviso visible (`flash-toaster.tsx`).
 - **Dónde se dispara la acción.** Las visitas de filtrado salen solo de `use-incident-filters.ts`: contadores, prioridad,
   búsqueda (300 ms de espera, Intro inmediato) y «Quitar filtros». Son recargas parciales
   (`only: ['incidents', 'counts', 'filters']`, `preserveState`, `replace`), y el servidor calcula solo esas tres props,
-  como comprueba un test. Crear, cambiar de estado, comentar y «Actuando como» salen de su propio componente. Crear,
+  como comprueba un test. Crear, comentar y «Actuando como» salen de su propio componente; el cambio de estado, de `use-status-change.tsx`, que comparten todas las filas de la página. Crear,
   cambiar de estado y comentar llevan su propio `errorBag`, para que los errores vuelvan al formulario que los provocó.
 - **Cómo se refresca.** El servidor contesta con una redirección, Inertia vuelve a pedir la página y con las props nuevas
   se repintan la fila, las insignias, los contadores y el historial. El aviso (`flash.toast`) llega por el evento `flash`
@@ -473,11 +474,12 @@ Simulación: no se ha modificado nada. Ejecuta con --fix para aplicar las correc
 ```text
 $ php artisan incidents:diagnose --fix --force
 (… el mismo informe …)
-#5 Fuga de agua en aseo de clientes (resolved_without_resolution_log): corregida.
+#5 Fuga de agua en aseo de clientes (resolved_without_resolution_log): corregida, añadido el paso «en revisión» → «resuelta».
 #11 Persiana metálica de acceso no sube (status_differs_from_last_log): marcada para revisión manual.
-#9 Puerta automática no abre (duplicate_or_incoherent_log): corregida.
+#9 Puerta automática no abre (duplicate_or_incoherent_log): corregida, anulado el log #40 como duplicado del #18.
 #17 Cuadro eléctrico salta de forma intermitente (duplicate_or_incoherent_log): marcada para revisión manual.
-Resultado: aplicadas 4, omitidas 0.
+
+Resultado: corregidas 2, marcadas para revisión 2, omitidas 0.
 
 $ php artisan incidents:diagnose
 (… B y D: «Ya marcada para revisión manual (fecha)» …)
@@ -511,7 +513,7 @@ Sin hallazgos.
 | #17 Cuadro eléctrico salta | El log #42 («en revisión» → «bloqueada»)   | Revisada por Andrés Molina: Importación    |
 | de forma intermitente      | no sigue al anterior, el #41, que la dejó  | revisada con el sistema anterior: el paso  |
 |                            | «abierta».                                 | a revisión se dio el mismo día (22/10/2026 |
-|                            |                                            | 14:08 UTC).                                |
+|                            |                                            | 15:17 UTC).                                |
 +----------------------------+--------------------------------------------+--------------------------------------------+
 
 Resumen: 0 automáticas, 0 a revisión manual, 0 ya en revisión manual, 1 revisadas.
@@ -597,8 +599,10 @@ Antes de publicar el repositorio pasé una auditoría de seguridad, documentada 
 cada uno. En resumen:
 
 - **Entradas.** CSRF en todas las escrituras y `$fillable` explícito: el estado y las fechas no se pueden asignar desde
-  fuera. Las entradas manipuladas (arrays, UTF-8 inválido, caracteres de control o de dirección bidi) se rechazan como
-  error de validación, nunca como un 500. Hay un límite de 60 escrituras por minuto e IP.
+  fuera. Las entradas manipuladas (arrays, UTF-8 inválido, caracteres de control, de dirección bidi o invisibles) se
+  rechazan como error de validación, nunca como un 500. Hay un límite de 60 escrituras por minuto e IP.
+- **Hosts.** Fuera de local solo se responde al host de `APP_URL`. En local, a `localhost`, `127.0.0.1` y el host de
+  `APP_URL`: así una web que redirija su dominio a tu máquina (*DNS rebinding*) no puede leer ni manejar el panel.
 - **Salida.** React escapa todo, no hay `dangerouslySetInnerHTML`, y los datos iniciales de la página viajan con
   `JSON_HEX_TAG`.
 - **Cabeceras.** Cabeceras de seguridad y CSP con nonce por petición
@@ -617,7 +621,7 @@ php artisan test     # contra la base incidents_testing
 composer check       # Pint, Larastan (nivel 8), tsc, ESLint, Prettier y los tests
 ```
 
-105 tests y 599 aserciones, contra MySQL y no SQLite: el bloqueo de fila, las CHECK, el JSON y las
+118 tests y 680 aserciones, contra MySQL y no SQLite: el bloqueo de fila, las CHECK, el JSON y las
 funciones ventana son parte de lo probado, y SQLite no los reproduce. No necesitan `npm run build`. Cubren:
 - la matriz completa de transiciones;
 - filtros, escapado de `LIKE`, contadores y recarga parcial;
@@ -631,8 +635,8 @@ funciones ventana son parte de lo probado, y SQLite no los reproduce. No necesit
 | Trabajo de la CI | Qué hace |
 |---|---|
 | Backend · PHP 8.3 y 8.4 con MySQL 8.4 | `composer validate`, instalación, compilación, Pint, Larastan, tests (más tsc, ESLint y Prettier en el de 8.4) y una prueba de humo que sigue este README: `migrate:fresh --seed` y el diagnóstico, con las salidas 1 → 0 → 0 |
-| Frontend · Linux, Windows y macOS | `npm ci`, tsc y compilación: detecta importaciones que solo funcionan porque Windows no distingue mayúsculas |
-| Auditoría de dependencias | `composer audit` y `npm audit --audit-level=high` |
+| Frontend · Linux, Windows y macOS con Node 24, y Linux con Node 22.12 | `npm ci`, tsc y compilación: detecta importaciones que solo funcionan porque Windows no distingue mayúsculas, y comprueba la versión mínima de Node |
+| Auditoría de dependencias | `composer audit` y `npm audit --audit-level=moderate` |
 
 ## Uso de IA
 

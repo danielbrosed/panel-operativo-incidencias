@@ -6,18 +6,33 @@ namespace App\Diagnostics\Checks;
 
 use App\Diagnostics\Finding;
 use App\Enums\IncidentLogAction;
-use App\Enums\IncidentStatus;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
-/** Runs the check's SQL and turns each row into a Finding. */
-abstract class SqlCheck implements ConsistencyCheck
+/** One SQL query that detects one kind of inconsistency between incidents and their status trail. */
+abstract class SqlCheck
 {
+    /** Stable identifier, stored in metadata.check of the logs the diagnostic writes. */
+    abstract public function key(): string;
+
+    abstract public function title(): string;
+
+    /** Why the query detects the problem, in one paragraph. Printed with -v. */
+    abstract public function rationale(): string;
+
+    /** The exact SQL that findings() runs. Printed with -v. */
+    abstract public function sql(): string;
+
     abstract protected function toFinding(stdClass $row): Finding;
 
+    /**
+     * Every finding, or only those of one incident (the re-check under the row lock). The re-check wraps the very
+     * same query, so the check and its re-check can never disagree.
+     *
+     * @return list<Finding>
+     */
     final public function findings(?int $incidentId = null): array
     {
-        // The re-verification wraps the very same query, so the check and its re-check can never disagree.
         /** @var list<stdClass> $rows */
         $rows = $incidentId === null
             ? DB::select($this->sql())
@@ -38,15 +53,5 @@ abstract class SqlCheck implements ConsistencyCheck
     protected static function trailActions(): string
     {
         return self::literal(...IncidentLogAction::statusTrailValues());
-    }
-
-    /** Lower-case status label for messages; an unknown value is shown as stored. */
-    protected static function label(?string $status): string
-    {
-        if ($status === null) {
-            return 'sin valor';
-        }
-
-        return mb_strtolower(IncidentStatus::tryFrom($status)?->label() ?? $status);
     }
 }

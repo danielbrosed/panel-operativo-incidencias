@@ -31,8 +31,8 @@ abstract class TestCase extends BaseTestCase
 
     private function ensureTestingDatabase(): void
     {
-        $connection = config('database.default');
-        $database = (string) config("database.connections.{$connection}.database");
+        $connection = config()->string('database.default');
+        $database = config()->string("database.connections.{$connection}.database");
 
         if ($connection !== 'mysql' || ! str_contains($database, '_testing')) {
             throw new RuntimeException(

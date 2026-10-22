@@ -10,9 +10,8 @@ interface StatusCountersProps {
 }
 
 /**
- * One counter per status, and the quick status filter at the same time: pressing a counter lists that status,
- * pressing the active one again clears it. The counts ignore the status filter (server side), so each number is
- * what pressing it will show.
+ * One counter per status that also filters by it (pressed again, it clears). The counts ignore the status filter, so
+ * each number is what pressing it will show.
  */
 export function StatusCounters({ statuses, counts, active, onChange }: StatusCountersProps) {
     return (

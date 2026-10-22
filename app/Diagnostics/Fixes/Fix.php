@@ -16,6 +16,9 @@ interface Fix
     /** The "Acción prevista" column of the report, in Spanish. */
     public function describe(): string;
 
+    /** What --fix prints once it is applied, in Spanish. */
+    public function appliedMessage(): string;
+
     /** Called inside the finding's transaction, with the incident row locked and the finding re-verified. */
     public function apply(Incident $incident, Finding $finding): void;
 }

@@ -4,23 +4,21 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Console\Commands\Concerns\PrintsUntrustedText;
 use App\Diagnostics\FixOutcome;
 use App\Diagnostics\IncidentDiagnostics;
 use App\Diagnostics\PlannedAction;
+use App\Diagnostics\PlanSummary;
+use App\Support\UntrustedText;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Helper\Table;
 
 /**
- * Exit code 0 when there is nothing left for --fix to do (findings already flagged or reviewed are listed, but are
- * not pending); 1 when there is, when something could not be applied, when the diagnostic run again after --fix
- * still finds work, or when the fix was not confirmed.
+ * Exit code 0 when there is nothing left for --fix to do (flagged or reviewed findings are listed, not pending);
+ * 1 when there is, when a fix was skipped or uncovered more work, or when the fix was not confirmed.
  */
 final class DiagnoseIncidents extends Command
 {
-    use PrintsUntrustedText;
-
     protected $signature = 'incidents:diagnose
         {--fix : Aplica las correcciones previstas, después de pedir confirmación}
         {--force : Con --fix, no pide confirmación (para la CI)}';
@@ -33,13 +31,12 @@ final class DiagnoseIncidents extends Command
     public function handle(IncidentDiagnostics $diagnostics): int
     {
         $plan = $diagnostics->plan();
-        $this->report($diagnostics, $plan);
+        $summary = PlanSummary::of($plan);
+        $this->report($diagnostics, $plan, $summary);
 
-        $pending = array_values(array_filter($plan, fn (PlannedAction $action): bool => $action->isActionable()));
-
-        if ($pending === []) {
-            if ($plan !== []) {
-                $this->info(self::nothingToFix($plan));
+        if ($summary->pending() === 0) {
+            if ($summary->total() > 0) {
+                $this->info(self::nothingToFix($summary));
             }
 
             return self::SUCCESS;
@@ -58,19 +55,24 @@ final class DiagnoseIncidents extends Command
                 return self::FAILURE;
             }
 
-            if (! $this->confirm(sprintf('¿Aplicar las %d acciones previstas?', count($pending)))) {
+            if (! $this->confirm(sprintf('¿Aplicar las %d acciones previstas?', $summary->pending()))) {
                 $this->warn('Cancelado: no se ha modificado nada.');
 
                 return self::FAILURE;
             }
         }
 
-        return $this->apply($diagnostics, $pending);
+        return $this->apply($diagnostics, array_values(array_filter(
+            $plan,
+            fn (PlannedAction $action): bool => $action->isActionable(),
+        )));
     }
 
     /** @param  list<PlannedAction>  $plan */
-    private function report(IncidentDiagnostics $diagnostics, array $plan): void
+    private function report(IncidentDiagnostics $diagnostics, array $plan, PlanSummary $summary): void
     {
+        $byCheck = collect($plan)->groupBy(fn (PlannedAction $action): string => $action->check->key());
+
         foreach ($diagnostics->checks() as $number => $check) {
             $this->newLine();
             $this->line(sprintf('<options=bold>%d. %s</> (%s)', $number + 1, $check->title(), $check->key()));
@@ -83,9 +85,9 @@ final class DiagnoseIncidents extends Command
                 $this->newLine();
             }
 
-            $actions = array_values(array_filter($plan, fn (PlannedAction $action): bool => $action->check === $check));
+            $actions = $byCheck->get($check->key());
 
-            if ($actions === []) {
+            if ($actions === null) {
                 $this->line('Sin hallazgos.');
 
                 continue;
@@ -94,11 +96,11 @@ final class DiagnoseIncidents extends Command
             $table = (new Table($this->output))
                 ->setHeaders(['Incidencia', 'Detalle', 'Acción prevista'])
                 ->setColumnWidths(self::COLUMN_WIDTHS)
-                ->setRows(array_map(fn (PlannedAction $action): array => array_map(self::untrusted(...), [
+                ->setRows($actions->map(fn (PlannedAction $action): array => array_map(UntrustedText::forTerminal(...), [
                     "#{$action->finding->incidentId} {$action->finding->incidentTitle}",
                     $action->finding->detail,
                     $action->describe(),
-                ]), $actions));
+                ]))->all());
 
             foreach (self::COLUMN_WIDTHS as $column => $width) {
                 $table->setColumnMaxWidth($column, $width);
@@ -109,36 +111,29 @@ final class DiagnoseIncidents extends Command
 
         $this->newLine();
 
-        if ($plan === []) {
+        if ($summary->total() === 0) {
             $this->info('Sin inconsistencias: el estado de cada incidencia coincide con su trazabilidad.');
 
             return;
         }
 
-        $automatic = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isActionable() && $a->finding->fix->isAutomatic()));
-        $manual = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isActionable() && ! $a->finding->fix->isAutomatic()));
-        $inReview = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isInReview()));
-        $reviewed = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isReviewed()));
-
         $this->line(sprintf(
             'Resumen: %d automáticas, %d a revisión manual, %d ya en revisión manual%s.',
-            $automatic,
-            $manual,
-            $inReview,
-            $reviewed > 0 ? ", {$reviewed} revisadas" : '',
+            $summary->automatic,
+            $summary->manual,
+            $summary->flagPending,
+            $summary->flagReviewed > 0 ? ", {$summary->flagReviewed} revisadas" : '',
         ));
         $this->line(wordwrap('Regla: '.IncidentDiagnostics::RULE, 110));
         $this->newLine();
     }
 
-    /** @param  list<PlannedAction>  $plan  every finding, none of them actionable */
-    private static function nothingToFix(array $plan): string
+    /** For a plan where every finding is already flagged or reviewed. */
+    private static function nothingToFix(PlanSummary $summary): string
     {
-        $reviewed = count(array_filter($plan, fn (PlannedAction $a): bool => $a->isReviewed()));
-
-        return match ($reviewed) {
+        return match ($summary->flagReviewed) {
             0 => 'Nada que corregir: lo que queda ya está marcado para revisión manual.',
-            count($plan) => 'Nada que corregir: lo que queda ya está revisado.',
+            $summary->total() => 'Nada que corregir: lo que queda ya está revisado.',
             default => 'Nada que corregir: lo que queda ya está marcado para revisión manual o revisado.',
         };
     }
@@ -146,30 +141,34 @@ final class DiagnoseIncidents extends Command
     /** @param  list<PlannedAction>  $pending */
     private function apply(IncidentDiagnostics $diagnostics, array $pending): int
     {
-        $applied = 0;
+        $corrected = $flagged = $skipped = 0;
 
         foreach ($pending as $action) {
+            $fix = $action->finding->fix;
             $outcome = $diagnostics->apply($action);
-            $applied += $outcome === FixOutcome::Applied ? 1 : 0;
-            $message = $outcome === FixOutcome::Applied && ! $action->finding->fix->isAutomatic()
-                ? 'marcada para revisión manual'
-                : $outcome->message();
+
+            if ($outcome !== FixOutcome::Applied) {
+                $skipped++;
+            } elseif ($fix->isAutomatic()) {
+                $corrected++;
+            } else {
+                $flagged++;
+            }
 
             $this->line(OutputFormatter::escape(sprintf(
                 '#%d %s (%s): %s.',
                 $action->finding->incidentId,
-                self::untrusted($action->finding->incidentTitle),
+                UntrustedText::forTerminal($action->finding->incidentTitle),
                 $action->check->key(),
-                $message,
+                $outcome->message($fix),
             )));
         }
 
-        $skipped = count($pending) - $applied;
         $this->newLine();
-        $this->line(sprintf('Resultado: aplicadas %d, omitidas %d.', $applied, $skipped));
+        $this->line(sprintf('Resultado: corregidas %d, marcadas para revisión %d, omitidas %d.', $corrected, $flagged, $skipped));
 
         // A fix can uncover the next problem (voiding a duplicate exposes the log before it): plan again.
-        $remaining = count(array_filter($diagnostics->plan(), fn (PlannedAction $action): bool => $action->isActionable()));
+        $remaining = PlanSummary::of($diagnostics->plan())->pending();
 
         if ($remaining > 0) {
             $this->warn(sprintf(

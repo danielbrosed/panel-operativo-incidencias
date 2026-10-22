@@ -1,10 +1,7 @@
 {
-    "Forbidden": "Acceso denegado",
     "Not Found": "No encontrada",
     "Page Expired": "La página ha caducado",
-    "Payment Required": "Pago requerido",
     "Server Error": "Error del servidor",
     "Service Unavailable": "Servicio no disponible",
-    "Too Many Requests": "Demasiadas peticiones",
-    "Unauthorized": "No autorizado"
+    "Too Many Requests": "Demasiadas peticiones"
 }

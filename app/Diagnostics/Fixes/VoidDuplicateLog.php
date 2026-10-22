@@ -25,6 +25,11 @@ final readonly class VoidDuplicateLog implements Fix
         return "Automática. Se anula el log #{$this->logId} como duplicado del #{$this->originalLogId}; no se borra.";
     }
 
+    public function appliedMessage(): string
+    {
+        return "corregida, anulado el log #{$this->logId} como duplicado del #{$this->originalLogId}";
+    }
+
     public function apply(Incident $incident, Finding $finding): void
     {
         $incident->logs()->whereKey($this->logId)->firstOrFail()

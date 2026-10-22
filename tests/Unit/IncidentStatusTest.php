@@ -58,6 +58,21 @@ class IncidentStatusTest extends TestCase
         $this->assertFalse(IncidentStatus::Blocked->requiresConfirmation(IncidentStatus::InReview));
     }
 
+    public function test_only_blocking_is_shown_as_destructive(): void
+    {
+        foreach (self::allPairs() as [$from, $to]) {
+            $this->assertSame($to === IncidentStatus::Blocked, $from->isDestructive($to));
+        }
+    }
+
+    public function test_lower_labels_also_show_values_the_enum_does_not_know(): void
+    {
+        $this->assertSame('en revisión', IncidentStatus::InReview->lowerLabel());
+        $this->assertSame('en revisión', IncidentStatus::lowerLabelOf('in_review'));
+        $this->assertSame('archived', IncidentStatus::lowerLabelOf('archived'));
+        $this->assertSame('sin valor', IncidentStatus::lowerLabelOf(null));
+    }
+
     public function test_a_reopen_is_logged_with_its_own_action(): void
     {
         $this->assertSame(IncidentLogAction::Reopened, IncidentStatus::Resolved->logActionFor(IncidentStatus::Open));

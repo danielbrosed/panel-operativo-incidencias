@@ -8,6 +8,7 @@ use App\Support\CurrentActor;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/** Who acts from now on: one of the configured operators. */
 class SwitchActorRequest extends FormRequest
 {
     /** @return array<string, mixed> */
@@ -18,7 +19,7 @@ class SwitchActorRequest extends FormRequest
         ];
     }
 
-    public function operatorName(): string
+    public function actorName(): string
     {
         return $this->string('name')->toString();
     }

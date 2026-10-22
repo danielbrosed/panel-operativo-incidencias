@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ActorSwitcher } from '@/components/actor-switcher';
 import { FlashToaster } from '@/components/flash-toaster';
 import { useFocusFallback } from '@/hooks/use-focus-fallback';
+import { APP_NAME } from '@/lib/app-config';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     useFocusFallback();
@@ -14,7 +15,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
                         <img src="/brand/optima-retail.svg" alt="Optima Retail" className="h-7 w-auto self-start" />
                         <div className="sm:border-l sm:border-line sm:pl-5">
-                            <p className="font-semibold text-navy">Panel operativo de incidencias</p>
+                            <p className="font-semibold text-navy">{APP_NAME}</p>
                             <p className="max-w-xl text-sm text-muted">
                                 Consulta y opera las incidencias de mantenimiento de las tiendas: prioridad, estado,
                                 responsable e historial de cada una.

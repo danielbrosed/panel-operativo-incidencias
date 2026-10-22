@@ -9,14 +9,12 @@ use App\Enums\IncidentStatus;
 use Illuminate\Http\Request;
 
 /**
- * Filters of the incident list, read from the query string (the URL is their source of truth).
- *
- * Unknown values are ignored on purpose instead of failing validation: a stale bookmark or a hand-edited
- * URL should still show the list, and a GET that redirects back with errors would be confusing.
+ * Filters of the incident list, read from the query string. Unknown values are ignored instead of failing
+ * validation: a stale bookmark or a hand-edited URL still shows the list.
  */
 final readonly class IncidentFilters
 {
-    public const SEARCH_MAX_LENGTH = 100;
+    private const SEARCH_MAX_LENGTH = 100;
 
     public function __construct(
         public ?IncidentStatus $status = null,

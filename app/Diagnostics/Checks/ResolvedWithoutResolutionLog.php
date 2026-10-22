@@ -32,6 +32,9 @@ final class ResolvedWithoutResolutionLog extends LatestTrailLogCheck
     {
         $resolved = self::literal(IncidentStatus::Resolved->value);
 
-        return "i.status = {$resolved}\n    AND (t.new_value IS NULL OR t.new_value <> {$resolved})";
+        return <<<SQL
+            i.status = {$resolved}
+                AND (t.new_value IS NULL OR t.new_value <> {$resolved})
+            SQL;
     }
 }

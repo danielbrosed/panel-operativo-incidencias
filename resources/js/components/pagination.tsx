@@ -2,12 +2,11 @@ import { Link } from '@inertiajs/react';
 import { cx } from '@/lib/cx';
 import type { Paginated } from '@/types/incident';
 
+type PageLink = Paginated<unknown>['meta']['links'][number];
+
 const item = 'grid h-9 min-w-9 place-items-center rounded-full px-3 text-sm font-semibold';
 
-/**
- * Laravel's paginator links. The first and last entries are "previous" and "next" (their labels come in English
- * with HTML entities, so they are replaced, never rendered raw). The filters are already in each link's URL.
- */
+/** Laravel's paginator links, "Anterior" first and "Siguiente" last. The filters are already in each link's URL. */
 export function Pagination({ meta }: { meta: Paginated<unknown>['meta'] }) {
     if (meta.total === 0) {
         return null;
@@ -24,16 +23,11 @@ export function Pagination({ meta }: { meta: Paginated<unknown>['meta'] }) {
             </p>
             {meta.last_page > 1 && (
                 <ul className="flex flex-wrap justify-center gap-1">
-                    {meta.links.map((link, index) => {
-                        const edge = index === 0 || index === lastIndex;
-                        const label = index === 0 ? 'Anterior' : index === lastIndex ? 'Siguiente' : link.label;
-
-                        return (
-                            <li key={index}>
-                                <PageItem link={link} label={label} edge={edge} />
-                            </li>
-                        );
-                    })}
+                    {meta.links.map((link, index) => (
+                        <li key={index}>
+                            <PageItem link={link} edge={index === 0 || index === lastIndex} />
+                        </li>
+                    ))}
                 </ul>
             )}
         </nav>
@@ -41,17 +35,16 @@ export function Pagination({ meta }: { meta: Paginated<unknown>['meta'] }) {
 }
 
 interface PageItemProps {
-    link: Paginated<unknown>['meta']['links'][number];
-    label: string;
+    link: PageLink;
     /** "Anterior" or "Siguiente". */
     edge: boolean;
 }
 
-function PageItem({ link, label, edge }: PageItemProps) {
+function PageItem({ link, edge }: PageItemProps) {
     if (link.active) {
         return (
             <span aria-current="page" className={cx(item, 'bg-navy text-white')}>
-                {label}
+                {link.label}
             </span>
         );
     }
@@ -65,7 +58,7 @@ function PageItem({ link, label, edge }: PageItemProps) {
                 preserveScroll
                 className={cx(item, 'text-navy hover:bg-white hover:text-brand-600')}
             >
-                {label}
+                {link.label}
             </Link>
         );
     }
@@ -74,11 +67,11 @@ function PageItem({ link, label, edge }: PageItemProps) {
     if (edge) {
         return (
             <a role="link" aria-disabled="true" className={cx(item, 'text-muted/60')}>
-                {label}
+                {link.label}
             </a>
         );
     }
 
     // The paginator's "..." between distant pages.
-    return <span className={cx(item, 'text-muted')}>{label}</span>;
+    return <span className={cx(item, 'text-muted')}>{link.label}</span>;
 }

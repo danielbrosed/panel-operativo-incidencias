@@ -4,38 +4,25 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Actions\Incidents\CreateIncident;
-use App\Data\Actor;
-use App\Data\NewIncidentData;
-use App\Enums\IncidentPriority;
 use App\Exceptions\Incidents\ImmutableIncidentLog;
-use App\Models\Incident;
 use App\Models\IncidentLog;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\CreatesIncidents;
 use Tests\TestCase;
 
 /** Guarantees that hold even when someone bypasses the actions. */
 class IntegrityTest extends TestCase
 {
+    use CreatesIncidents;
     use RefreshDatabase;
-
-    private function incident(): Incident
-    {
-        return app(CreateIncident::class)->handle(new NewIncidentData(
-            title: 'Cerradura de la puerta trasera rota',
-            description: 'La llave gira en vacío en la puerta de mercancías.',
-            priority: IncidentPriority::High,
-            requesterName: 'Marina Castro',
-        ), new Actor('Marta Ruiz'));
-    }
 
     public function test_a_log_entry_cannot_be_edited(): void
     {
-        $log = $this->incident()->logs()->sole();
+        $log = $this->openIncident()->logs()->sole();
 
         $this->expectException(ImmutableIncidentLog::class);
         $log->update(['new_value' => 'resolved']);
@@ -43,7 +30,7 @@ class IntegrityTest extends TestCase
 
     public function test_a_log_entry_cannot_be_deleted(): void
     {
-        $log = $this->incident()->logs()->sole();
+        $log = $this->openIncident()->logs()->sole();
 
         $this->expectException(ImmutableIncidentLog::class);
         $log->delete();
@@ -51,7 +38,7 @@ class IntegrityTest extends TestCase
 
     public function test_a_log_entry_can_be_voided_once_and_is_kept(): void
     {
-        $log = $this->incident()->logs()->sole();
+        $log = $this->openIncident()->logs()->sole();
 
         $log->void('Duplicado del log #1');
 
@@ -65,7 +52,7 @@ class IntegrityTest extends TestCase
 
     public function test_two_stale_copies_of_a_log_cannot_both_void_it(): void
     {
-        $id = $this->incident()->logs()->sole()->id;
+        $id = $this->openIncident()->logs()->sole()->id;
         // Both loaded before either voids, like two processes acting at the same time.
         [$first, $second] = [IncidentLog::query()->findOrFail($id), IncidentLog::query()->findOrFail($id)];
 
@@ -82,7 +69,7 @@ class IntegrityTest extends TestCase
 
     public function test_a_log_cannot_be_voided_without_a_reason(): void
     {
-        $log = $this->incident()->logs()->sole();
+        $log = $this->openIncident()->logs()->sole();
 
         try {
             $log->void('   ');
@@ -105,7 +92,7 @@ class IntegrityTest extends TestCase
     #[DataProvider('halfVoids')]
     public function test_the_database_requires_voided_at_and_voided_reason_together(array $columns): void
     {
-        $log = $this->incident()->logs()->sole();
+        $log = $this->openIncident()->logs()->sole();
 
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage("Check constraint 'incident_logs_void_check' is violated");
@@ -133,7 +120,7 @@ class IntegrityTest extends TestCase
     #[DataProvider('lookAlikeValues')]
     public function test_the_database_rejects_values_that_only_look_like_an_allowed_one(string $table, string $column, string $value): void
     {
-        $incident = $this->incident();
+        $incident = $this->openIncident();
 
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage("Check constraint '{$table}_{$column}_check' is violated");
@@ -161,7 +148,7 @@ class IntegrityTest extends TestCase
 
     public function test_status_values_compare_exactly(): void
     {
-        $this->incident();
+        $this->openIncident();
 
         $this->assertSame(1, DB::table('incidents')->where('status', 'open')->count());
         $this->assertSame(0, DB::table('incidents')->where('status', 'OPEN')->count());
@@ -170,7 +157,7 @@ class IntegrityTest extends TestCase
 
     public function test_the_database_rejects_an_unknown_status_even_outside_the_app(): void
     {
-        $incident = $this->incident();
+        $incident = $this->openIncident();
 
         $this->expectException(QueryException::class);
         DB::table('incidents')->where('id', $incident->id)->update(['status' => 'archived']);
@@ -178,7 +165,7 @@ class IntegrityTest extends TestCase
 
     public function test_an_incident_with_a_trail_cannot_be_deleted(): void
     {
-        $incident = $this->incident();
+        $incident = $this->openIncident();
 
         $this->expectException(QueryException::class);
         DB::table('incidents')->where('id', $incident->id)->delete();
@@ -186,7 +173,7 @@ class IntegrityTest extends TestCase
 
     public function test_the_database_rejects_an_unknown_log_action(): void
     {
-        $incident = $this->incident();
+        $incident = $this->openIncident();
 
         $this->expectException(QueryException::class);
         DB::table('incident_logs')->insert([

@@ -37,12 +37,10 @@ return new class extends Migration
         });
 
         // Defence in depth for writes that bypass the application (manual SQL, imports): exactly the cases the
-        // diagnostic exists for. Values are written out on purpose: a migration is a snapshot of the schema at this
-        // point in history, so adding a status means a new migration (see .claude/skills/incident-domain).
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE incidents ADD CONSTRAINT incidents_status_check CHECK (status IN ('open', 'in_review', 'blocked', 'resolved'))");
-            DB::statement("ALTER TABLE incidents ADD CONSTRAINT incidents_priority_check CHECK (priority IN ('low', 'medium', 'high'))");
-        }
+        // diagnostic exists for. The values are written out because a migration is a snapshot of the schema: adding
+        // a status or a priority means adding a migration that drops and re-creates this CHECK.
+        DB::statement("ALTER TABLE incidents ADD CONSTRAINT incidents_status_check CHECK (status IN ('open', 'in_review', 'blocked', 'resolved'))");
+        DB::statement("ALTER TABLE incidents ADD CONSTRAINT incidents_priority_check CHECK (priority IN ('low', 'medium', 'high'))");
     }
 
     public function down(): void

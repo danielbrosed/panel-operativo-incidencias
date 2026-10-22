@@ -13,20 +13,18 @@ use Illuminate\Support\Facades\DB;
 
 final class CreateIncident
 {
-    /**
-     * Opens an incident and writes its first trail entry (null → open) in the same transaction:
-     * there is never an incident without the log that explains its status.
-     */
+    /** The incident and its first trail entry (null → open) in one transaction: never one without the other. */
     public function handle(NewIncidentData $data, Actor $actor): Incident
     {
         return DB::transaction(function () use ($data, $actor): Incident {
+            // Actions trim the free text they store: seeders and commands call them without the TrimStrings middleware.
             $incident = new Incident([
-                'title' => $data->title,
-                'description' => $data->description,
+                'title' => trim($data->title),
+                'description' => trim($data->description),
                 'priority' => $data->priority,
-                'requester_name' => $data->requesterName,
+                'requester_name' => trim($data->requesterName),
                 'assigned_to' => $data->assignedTo,
-                'store' => $data->store,
+                'store' => filled($data->store) ? trim($data->store) : null,
             ]);
             $incident->status = IncidentStatus::Open;
             $incident->due_at = now()->addHours($data->priority->slaHours())->toImmutable();

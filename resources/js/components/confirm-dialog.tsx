@@ -1,5 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { createPortal } from 'react-dom';
+import { useId, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Button, type ButtonVariant } from '@/components/ui/button';
 
 interface ConfirmDialogProps {
@@ -19,27 +18,27 @@ interface ConfirmDialogProps {
     children?: ReactNode;
 }
 
-/**
- * Native modal <dialog>: the browser traps focus, makes the page inert and gives focus back to the opener on
- * close. The `open` prop is the source of truth and the effect only syncs the element with it, so running it
- * twice (StrictMode) changes nothing. A layout effect, so it never paints open with stale content.
- *
- * It lives in <body>, not where it is declared: the list renders each row twice (table and cards, one of them
- * display:none), and an open modal left inside a hidden subtree would vanish while keeping the page inert. It is
- * mounted the first time it opens and kept afterwards, so it always closes through dialog.close().
- */
-export function ConfirmDialog(props: ConfirmDialogProps) {
-    const { open, processing = false, initialFocus, onDismiss, onClosed } = props;
-    const [mounted, setMounted] = useState(open);
+// Native modal <dialog>: the browser traps focus, makes the page inert and gives focus back to the opener. `open` is
+// the source of truth; a layout effect keeps the element in step, so it never paints open with stale content.
+export function ConfirmDialog({
+    open,
+    title,
+    description,
+    confirmLabel,
+    tone = 'primary',
+    processing = false,
+    confirmDisabled = false,
+    initialFocus,
+    onConfirm,
+    onDismiss,
+    onClosed,
+    children,
+}: ConfirmDialogProps) {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const confirmRef = useRef<HTMLButtonElement>(null);
     const titleId = useId();
     const descriptionId = useId();
-    const confirmBlocked = processing || props.confirmDisabled === true;
-
-    if (open && !mounted) {
-        setMounted(true);
-    }
+    const confirmBlocked = processing || confirmDisabled;
 
     useLayoutEffect(() => {
         const dialog = dialogRef.current;
@@ -52,15 +51,11 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
         }
     }, [open, initialFocus, onClosed]);
 
-    if (!mounted) {
-        return null;
-    }
-
     const dismiss = () => {
         if (!processing) onDismiss();
     };
 
-    return createPortal(
+    return (
         <dialog
             ref={dialogRef}
             aria-labelledby={titleId}
@@ -70,8 +65,9 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
                 event.preventDefault();
                 dismiss();
             }}
-            // The browser can still close it on its own (a repeated Esc): keep the state in step.
-            onClose={() => open && onDismiss()}
+            // The browser can close it on its own (a repeated Esc): keep the state in step. The close event is queued,
+            // so it can arrive after the dialog has been opened again; then it is stale and ignored.
+            onClose={(event) => open && !event.currentTarget.open && onDismiss()}
             className="m-auto w-[min(34rem,calc(100%-2rem))] rounded-card bg-white p-0 text-ink backdrop:bg-navy/40"
         >
             <form
@@ -79,16 +75,16 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
                 className="flex flex-col gap-4 p-6"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    if (!confirmBlocked) props.onConfirm();
+                    if (!confirmBlocked) onConfirm();
                 }}
             >
                 <h2 id={titleId} className="text-lg font-semibold text-navy">
-                    {props.title}
+                    {title}
                 </h2>
                 <div id={descriptionId} className="text-sm leading-relaxed text-muted">
-                    {props.description}
+                    {description}
                 </div>
-                {props.children}
+                {children}
                 <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
                     <Button variant="secondary" onClick={dismiss} aria-disabled={processing || undefined}>
                         Cancelar
@@ -96,15 +92,14 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
                     <Button
                         ref={confirmRef}
                         type="submit"
-                        variant={props.tone ?? 'primary'}
+                        variant={tone}
                         aria-disabled={confirmBlocked || undefined}
                         aria-busy={processing || undefined}
                     >
-                        {props.confirmLabel}
+                        {confirmLabel}
                     </Button>
                 </div>
             </form>
-        </dialog>,
-        document.body,
+        </dialog>
     );
 }

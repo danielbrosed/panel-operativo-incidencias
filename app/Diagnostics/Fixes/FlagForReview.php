@@ -11,9 +11,8 @@ use App\Models\Incident;
 use App\Models\IncidentLog;
 
 /**
- * Leaves a flagged_for_review entry on the incident and nothing else: a person decides what the truth is.
- * The panel shows the "Revisión manual" badge while the flag is active; `incidents:review` voids it once a person
- * has reviewed the case, and the voided flag is the record of that review.
+ * Leaves a flagged_for_review entry and nothing else: a person decides what the truth is. The panel shows the
+ * "Revisión manual" badge while it is active; `incidents:review` voids it, and the voided flag records the review.
  */
 final readonly class FlagForReview implements Fix
 {
@@ -30,6 +29,11 @@ final readonly class FlagForReview implements Fix
         return "Revisión manual. {$this->why}";
     }
 
+    public function appliedMessage(): string
+    {
+        return 'marcada para revisión manual';
+    }
+
     public function apply(Incident $incident, Finding $finding): void
     {
         $incident->logs()->create([
@@ -38,7 +42,7 @@ final readonly class FlagForReview implements Fix
             'new_value' => null,
             'user_name' => Actor::system()->name,
             'metadata' => [
-                'check' => $finding->check,
+                'check' => $finding->checkKey,
                 'evidence_log_id' => $finding->evidenceLogId,
                 'detail' => "{$finding->detail} {$this->why}",
             ],
@@ -46,18 +50,21 @@ final readonly class FlagForReview implements Fix
     }
 
     /**
-     * The flag already left for the same finding (same check and evidence log), if any: an active one (still in
-     * review) before a voided one (reviewed). Either way the finding is handled and is never flagged again.
+     * The flag already left for the same finding, an active one before a voided one: either way it is never flagged
+     * again. Same finding means same check, evidence log and detail; the detail names the statuses it saw, so a
+     * review covers that mismatch and not a different one that shows up later on the same log.
      */
     public static function existingFor(Finding $finding): ?IncidentLog
     {
         $flags = IncidentLog::query()
             ->where('incident_id', $finding->incidentId)
-            ->where('action', IncidentLogAction::FlaggedForReview)
+            ->reviewFlags()
             ->orderBy('id')
             ->get()
-            ->filter(fn (IncidentLog $flag): bool => ($flag->metadata['check'] ?? null) === $finding->check
-                && ($flag->metadata['evidence_log_id'] ?? null) === $finding->evidenceLogId);
+            ->filter(fn (IncidentLog $flag): bool => ($flag->metadata['check'] ?? null) === $finding->checkKey
+                && ($flag->metadata['evidence_log_id'] ?? null) === $finding->evidenceLogId
+                && is_string($flag->metadata['detail'] ?? null)
+                && str_starts_with($flag->metadata['detail'], "{$finding->detail} "));
 
         return $flags->first(fn (IncidentLog $flag): bool => ! $flag->isVoided()) ?? $flags->last();
     }

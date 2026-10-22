@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Incidents;
 
 use App\Models\Incident;
+use App\Support\CurrentActor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -16,13 +18,14 @@ class ActorTest extends TestCase
     public function test_every_page_knows_who_is_acting(): void
     {
         $this->get('/incidents')->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('actor.current', 'Marta Ruiz')
-            ->where('actor.options', ['Marta Ruiz', 'Jordi Vidal', 'Lucía Romero', 'Andrés Molina']));
+            ->where('actor.current', CurrentActor::operatorsFromConfig()[0])
+            ->where('actor.options', config()->array('incidents.operators')));
     }
 
     public function test_switching_actor_changes_who_signs_the_next_actions(): void
     {
-        $this->put('/actor', ['name' => 'Jordi Vidal'])->assertSessionHasNoErrors();
+        $other = Arr::last(CurrentActor::operatorsFromConfig());
+        $this->put('/actor', ['name' => $other])->assertSessionHasNoErrors();
 
         $this->post('/incidents', [
             'title' => 'Rótulo de fachada apagado',
@@ -31,8 +34,8 @@ class ActorTest extends TestCase
             'requester_name' => 'Rocío Navas',
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame('Jordi Vidal', Incident::query()->sole()->logs()->sole()->user_name);
-        $this->get('/incidents')->assertInertia(fn (AssertableInertia $page) => $page->where('actor.current', 'Jordi Vidal'));
+        $this->assertSame($other, Incident::query()->sole()->logs()->sole()->user_name);
+        $this->get('/incidents')->assertInertia(fn (AssertableInertia $page) => $page->where('actor.current', $other));
     }
 
     public function test_only_configured_operators_can_be_chosen(): void

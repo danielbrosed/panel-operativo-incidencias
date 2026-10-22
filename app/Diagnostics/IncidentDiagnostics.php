@@ -4,32 +4,28 @@ declare(strict_types=1);
 
 namespace App\Diagnostics;
 
-use App\Diagnostics\Checks\ConsistencyCheck;
 use App\Diagnostics\Checks\DuplicateOrIncoherentLog;
 use App\Diagnostics\Checks\ResolvedWithoutResolutionLog;
+use App\Diagnostics\Checks\SqlCheck;
 use App\Diagnostics\Checks\StatusDiffersFromLastLog;
 use App\Diagnostics\Fixes\FlagForReview;
 use App\Diagnostics\Fixes\ReconcileStatus;
 use App\Models\Incident;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Finds inconsistencies between incidents and their status trail and plans what to do with each one.
- *
- * The correction rule: a finding is fixed automatically only when
- *  1. the fix does not change the incident's status,
- *  2. nothing has to be invented (date, author or reason), and
- *  3. the gap is explained by a single transition allowed by the state machine that does not require a reason.
- * Everything else is flagged for manual review. Audit rows are never deleted or backdated, and incidents.status is
- * never changed from here: when the row and its trail disagree, nothing tells us which one is right.
+ * Finds inconsistencies between incidents and their status trail and plans what to do with each one, following
+ * RULE. Audit rows are never deleted or backdated and incidents.status is never changed from here.
  */
 final class IncidentDiagnostics
 {
+    /** The correction rule. The single place it is written; every report prints it. */
     public const RULE = 'Solo se corrige automáticamente cuando (1) la corrección no cambia el estado de la incidencia, '.
         '(2) no hay que inventar fecha, autor ni motivo y (3) el hueco se explica con una única transición '.
         'permitida que no exige motivo. Todo lo demás se marca para revisión manual. Ningún log se borra ni se atrasa.';
 
-    /** @var list<ConsistencyCheck> */
+    /** @var list<SqlCheck> */
     private readonly array $checks;
 
     public function __construct()
@@ -41,7 +37,7 @@ final class IncidentDiagnostics
         ];
     }
 
-    /** @return list<ConsistencyCheck> */
+    /** @return list<SqlCheck> */
     public function checks(): array
     {
         return $this->checks;
@@ -50,45 +46,43 @@ final class IncidentDiagnostics
     /** @return list<PlannedAction> */
     public function plan(): array
     {
-        return array_map(fn (array $found): PlannedAction => new PlannedAction(
-            $found[0],
-            $found[1],
-            $found[1]->fix instanceof FlagForReview ? FlagForReview::existingFor($found[1]) : null,
-        ), $this->findings());
+        return $this->findings();
     }
 
     /**
-     * Applies one planned action in its own transaction. The incident row is locked first and the finding is
-     * re-checked under the lock, because someone may have changed the incident since the plan was made.
+     * Applies one planned action in its own transaction. The incident row is locked and the finding re-checked under
+     * the lock, because someone may have changed the incident, or flagged or reviewed it, since the plan was made.
      */
-    public function apply(PlannedAction $action): FixOutcome
+    public function apply(PlannedAction $planned): FixOutcome
     {
-        return DB::transaction(function () use ($action): FixOutcome {
-            $finding = $action->finding;
-            $incident = Incident::query()->whereKey($finding->incidentId)->lockForUpdate()->first();
+        return DB::transaction(function () use ($planned): FixOutcome {
+            $incident = Incident::query()->whereKey($planned->finding->incidentId)->lockForUpdate()->first();
 
-            // Loose comparison on purpose: the same finding means equal check, incident, evidence, detail and fix.
-            if ($incident === null || ! in_array($finding, array_column($this->findings($incident->id), 1))) {
+            // Loose comparison: the same finding means equal check, incident, evidence, detail and fix.
+            $current = $incident === null ? null : Arr::first(
+                $this->findings($incident->id),
+                fn (PlannedAction $action): bool => $action->finding == $planned->finding,
+            );
+
+            if ($incident === null || $current === null) {
                 return FixOutcome::NoLongerTrue;
             }
 
-            $existing = $finding->fix instanceof FlagForReview ? FlagForReview::existingFor($finding) : null;
-
-            if ($existing !== null) {
-                return $existing->isVoided() ? FixOutcome::AlreadyReviewed : FixOutcome::AlreadyFlagged;
+            if ($current->flag !== null) {
+                return $current->isFlagReviewed() ? FixOutcome::AlreadyReviewed : FixOutcome::AlreadyFlagged;
             }
 
-            $finding->fix->apply($incident, $finding);
+            $current->finding->fix->apply($incident, $current->finding);
 
             return FixOutcome::Applied;
         });
     }
 
     /**
-     * Every finding of every check, with automatic reconciliations the trail cannot back downgraded to a flag.
-     * The re-check under the lock goes through here too, so it applies the same downgrades as the plan.
+     * Every finding of every check, or only one incident's, with the flag already left for it. A reconcile the trail
+     * cannot back is downgraded to a flag here, so the re-check under the lock applies the same downgrades.
      *
-     * @return list<array{ConsistencyCheck, Finding}>
+     * @return list<PlannedAction>
      */
     private function findings(?int $incidentId = null): array
     {
@@ -97,7 +91,7 @@ final class IncidentDiagnostics
 
         foreach ($this->checks as $check) {
             foreach ($check->findings($incidentId) as $finding) {
-                $found[] = [$check, $finding];
+                $found[] = new PlannedAction($check, $finding);
 
                 if ($check instanceof DuplicateOrIncoherentLog) {
                     $suspectTrails[$finding->incidentId] = true;
@@ -105,10 +99,15 @@ final class IncidentDiagnostics
             }
         }
 
-        return array_map(
-            fn (array $pair): array => [$pair[0], self::guarded($pair[1], isset($suspectTrails[$pair[1]->incidentId]))],
-            $found,
-        );
+        return array_map(function (PlannedAction $action) use ($suspectTrails): PlannedAction {
+            $finding = self::guarded($action->finding, isset($suspectTrails[$action->finding->incidentId]));
+
+            return new PlannedAction(
+                $action->check,
+                $finding,
+                $finding->fix instanceof FlagForReview ? FlagForReview::existingFor($finding) : null,
+            );
+        }, $found);
     }
 
     /** A reconcile is only safe on a trail that can be trusted: otherwise a person has to look at it. */
@@ -131,7 +130,7 @@ final class IncidentDiagnostics
         };
 
         return $why === null ? $finding : new Finding(
-            check: $finding->check,
+            checkKey: $finding->checkKey,
             incidentId: $finding->incidentId,
             incidentTitle: $finding->incidentTitle,
             evidenceLogId: $finding->evidenceLogId,

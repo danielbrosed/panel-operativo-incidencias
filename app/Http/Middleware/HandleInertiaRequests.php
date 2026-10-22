@@ -21,15 +21,12 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'actor' => function (): array {
-                $actor = app(CurrentActor::class);
-
-                return [
-                    'current' => $actor->get()->name,
-                    'options' => $actor->options(),
-                    'update_url' => route('actor.update'),
-                ];
-            },
+            // Inertia resolves prop closures through the container, so the actor is injected only when it is sent.
+            'actor' => fn (CurrentActor $actor): array => [
+                'current' => $actor->get()->name,
+                'options' => $actor->operators(),
+                'update_url' => route('actor.update'),
+            ],
         ];
     }
 }

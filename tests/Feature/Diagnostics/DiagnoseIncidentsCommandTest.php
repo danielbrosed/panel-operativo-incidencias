@@ -10,6 +10,7 @@ use App\Diagnostics\Fixes\VoidDuplicateLog;
 use App\Diagnostics\FixOutcome;
 use App\Diagnostics\IncidentDiagnostics;
 use App\Diagnostics\PlannedAction;
+use App\Diagnostics\PlanSummary;
 use App\Enums\IncidentLogAction;
 use App\Enums\IncidentStatus;
 use App\Models\Incident;
@@ -19,25 +20,15 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\PendingCommand;
+use Tests\Concerns\CreatesIncidents;
 use Tests\TestCase;
 
 class DiagnoseIncidentsCommandTest extends TestCase
 {
+    use CreatesIncidents;
     use RefreshDatabase;
+    use SeededInconsistencies;
     use WritesTrailsBySql;
-
-    // The four cases broken on purpose by InconsistenciesSeeder, and a legitimate reopen that must be left alone.
-    private const A = 'Fuga de agua en aseo de clientes';
-
-    private const B = 'Persiana metálica de acceso no sube';
-
-    private const C = 'Puerta automática no abre';
-
-    private const D = 'Cuadro eléctrico salta de forma intermitente';
-
-    private const LEGITIMATE_REOPEN = 'Puerta del almacén no cierra bien';
-
-    private const FIX = ['--fix' => true, '--force' => true];
 
     public function test_the_demo_data_alone_has_no_inconsistencies(): void
     {
@@ -47,7 +38,7 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $this->assertStringContainsString('Sin inconsistencias', Artisan::output());
     }
 
-    public function test_each_seeded_case_is_found_by_its_own_check_with_the_expected_fix(): void
+    public function test_each_seeded_case_is_found_by_its_check_with_the_expected_fix(): void
     {
         $this->seed();
 
@@ -57,9 +48,9 @@ class DiagnoseIncidentsCommandTest extends TestCase
         }
 
         $this->assertSame([
-            'resolved_without_resolution_log' => [[self::A, ReconcileStatus::class]],
-            'status_differs_from_last_log' => [[self::B, FlagForReview::class]],
-            'duplicate_or_incoherent_log' => [[self::C, VoidDuplicateLog::class], [self::D, FlagForReview::class]],
+            'resolved_without_resolution_log' => [[self::RESOLVED_BY_SQL, ReconcileStatus::class]],
+            'status_differs_from_last_log' => [[self::REOPENED_BY_SQL, FlagForReview::class]],
+            'duplicate_or_incoherent_log' => [[self::DOUBLE_CLICK, VoidDuplicateLog::class], [self::IMPORTED_WITH_GAP, FlagForReview::class]],
         ], $found);
     }
 
@@ -74,47 +65,49 @@ class DiagnoseIncidentsCommandTest extends TestCase
         foreach (app(IncidentDiagnostics::class)->checks() as $check) {
             $this->assertStringContainsString($check->title(), $output);
         }
-        foreach ([self::A, self::B, self::C, self::D] as $title) {
-            // First column of a table row: "| #<id> <title…>".
-            $this->assertMatchesRegularExpression('/^\| #'.$this->incident($title)->id.' /m', $output);
+        foreach ([self::RESOLVED_BY_SQL, self::REOPENED_BY_SQL, self::DOUBLE_CLICK, self::IMPORTED_WITH_GAP] as $title) {
+            $this->assertListsIncident($output, $this->incidentTitled($title));
         }
         $this->assertStringContainsString('Resumen: 2 automáticas, 2 a revisión manual, 0 ya en revisión manual.', $output);
+        $this->assertStringContainsString(IncidentDiagnostics::RULE, str_replace("\n", ' ', $output));
         $this->assertStringContainsString('Simulación: no se ha modificado nada.', $output);
         $this->assertSame($before, $this->snapshot());
     }
 
-    public function test_fix_reconciles_a_voids_the_copy_in_c_and_flags_b_and_d(): void
+    public function test_fix_reconciles_the_sql_resolution_voids_the_double_click_and_flags_the_rest(): void
     {
         $this->seed();
         $startedAt = now()->startOfSecond();
         $incidentsBefore = $this->snapshot()['incidents'];
         $logsBefore = IncidentLog::query()->count();
-        $legitimateReopen = $this->incident(self::LEGITIMATE_REOPEN);
+        $legitimateReopen = $this->incidentTitled(self::LEGITIMATE_REOPEN);
         $legitimateTrail = $legitimateReopen->logs()->orderBy('id')->get()->toArray();
-        [$a, $b, $c, $d] = array_map($this->incident(...), [self::A, self::B, self::C, self::D]);
-        $cLogs = $c->logs()->count();
+        $resolvedBySql = $this->incidentTitled(self::RESOLVED_BY_SQL);
+        $doubleClick = $this->incidentTitled(self::DOUBLE_CLICK);
+        $doubleClickLogs = $doubleClick->logs()->count();
 
         $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
+        $this->assertStringContainsString('Resultado: corregidas 2, marcadas para revisión 2, omitidas 0.', Artisan::output());
 
-        // A: the missing in_review → resolved step, dated now and marked as inferred.
-        $reconciled = $a->logs()->where('action', IncidentLogAction::StatusReconciled)->sole();
+        // The missing in_review → resolved step, dated now and marked as inferred.
+        $reconciled = $resolvedBySql->logs()->where('action', IncidentLogAction::StatusReconciled)->sole();
         $this->assertSame([IncidentStatus::InReview->value, IncidentStatus::Resolved->value], [$reconciled->old_value, $reconciled->new_value]);
-        $this->assertSame('sistema:diagnostico', $reconciled->user_name);
+        $this->assertSame(config()->string('incidents.diagnostics.actor'), $reconciled->user_name);
         $this->assertTrue($reconciled->metadata['inferred'] ?? null);
         $this->assertSame('resolved_without_resolution_log', $reconciled->metadata['check'] ?? null);
         $this->assertTrue($reconciled->created_at->greaterThanOrEqualTo($startedAt), 'never backdated');
 
-        // C: the later copy is voided with a reason that points at the original, and kept.
-        $this->assertSame($cLogs, $c->logs()->count());
-        $voided = $c->logs()->whereNotNull('voided_at')->sole();
-        $original = $c->logs()->active()->where('new_value', IncidentStatus::Blocked->value)->sole();
+        // The later copy of the double click is voided with a reason that points at the original, and kept.
+        $this->assertSame($doubleClickLogs, $doubleClick->logs()->count());
+        $voided = $doubleClick->logs()->whereNotNull('voided_at')->sole();
+        $original = $doubleClick->logs()->active()->where('new_value', IncidentStatus::Blocked->value)->sole();
         $this->assertGreaterThan($original->id, $voided->id);
         $this->assertStringContainsString("Duplicado del log #{$original->id}", (string) $voided->voided_reason);
 
-        // B and D: one manual-review flag each, pointing at the log that shows the problem.
-        foreach ([$b, $d] as $incident) {
-            $flag = $incident->logs()->where('action', IncidentLogAction::FlaggedForReview)->sole();
-            $this->assertSame('sistema:diagnostico', $flag->user_name);
+        // One manual-review flag each for the other two, pointing at the log that shows the problem.
+        foreach ([self::REOPENED_BY_SQL, self::IMPORTED_WITH_GAP] as $title) {
+            $flag = $this->incidentTitled($title)->logs()->reviewFlags()->sole();
+            $this->assertSame(config()->string('incidents.diagnostics.actor'), $flag->user_name);
             $this->assertIsInt($flag->metadata['evidence_log_id'] ?? null);
             $this->assertNotEmpty($flag->metadata['detail'] ?? null);
         }
@@ -134,12 +127,15 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
         $this->assertSame($afterFirstFix, $this->snapshot());
 
+        $plan = app(IncidentDiagnostics::class)->plan();
+        $this->assertEquals(new PlanSummary(automatic: 0, manual: 0, flagPending: 2, flagReviewed: 0), PlanSummary::of($plan));
+        $this->assertEqualsCanonicalizing(
+            [self::REOPENED_BY_SQL, self::IMPORTED_WITH_GAP],
+            array_map(fn (PlannedAction $action): string => $action->finding->incidentTitle, $plan),
+        );
+
         $this->assertSame(0, Artisan::call('incidents:diagnose'));
-        $output = Artisan::output();
-        $this->assertStringContainsString('Resumen: 0 automáticas, 0 a revisión manual, 2 ya en revisión manual.', $output);
-        foreach ([self::B, self::D] as $title) {
-            $this->assertMatchesRegularExpression('/^\| #'.$this->incident($title)->id.' .*Ya marcada para revisión manual/m', $output);
-        }
+        $this->assertStringContainsString('Ya marcada para revisión manual', Artisan::output());
     }
 
     public function test_fix_without_force_applies_nothing_when_it_cannot_ask(): void
@@ -160,9 +156,9 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $this->fixAnswering('no')->assertExitCode(1)->run();
         $this->assertSame($before, $this->snapshot());
 
-        $this->fixAnswering('yes')->expectsOutputToContain('Resultado: aplicadas 4, omitidas 0.')->assertExitCode(0)->run();
+        $this->fixAnswering('yes')->assertExitCode(0)->run();
         $this->assertSame(1, IncidentLog::query()->where('action', IncidentLogAction::StatusReconciled)->count());
-        $this->assertSame(2, IncidentLog::query()->where('action', IncidentLogAction::FlaggedForReview)->count());
+        $this->assertSame(2, IncidentLog::query()->reviewFlags()->count());
     }
 
     public function test_a_resolved_incident_whose_last_log_is_blocked_is_flagged_not_reconciled(): void
@@ -179,7 +175,7 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $incident = Incident::query()->findOrFail($id);
         $this->assertSame(IncidentStatus::Resolved, $incident->status);
         $this->assertFalse($incident->logs()->where('action', IncidentLogAction::StatusReconciled)->exists());
-        $flag = $incident->logs()->where('action', IncidentLogAction::FlaggedForReview)->sole();
+        $flag = $incident->logs()->reviewFlags()->sole();
         $this->assertSame('resolved_without_resolution_log', $flag->metadata['check'] ?? null);
         $this->assertStringContainsString('no hay un paso permitido', (string) ($flag->metadata['detail'] ?? ''));
     }
@@ -188,7 +184,7 @@ class DiagnoseIncidentsCommandTest extends TestCase
     {
         $this->seed();
         $diagnostics = app(IncidentDiagnostics::class);
-        $action = collect($diagnostics->plan())->sole(fn (PlannedAction $action): bool => $action->finding->incidentTitle === self::A);
+        $action = collect($diagnostics->plan())->sole(fn (PlannedAction $action): bool => $action->finding->incidentTitle === self::RESOLVED_BY_SQL);
 
         // Meanwhile someone puts it back in review by hand: its trail matches again and there is nothing to reconcile.
         DB::table('incidents')->where('id', $action->finding->incidentId)->update(['status' => IncidentStatus::InReview->value]);
@@ -208,7 +204,7 @@ class DiagnoseIncidentsCommandTest extends TestCase
         $this->assertStringContainsString('la deja «archived»', Artisan::output());
 
         $this->assertSame(0, Artisan::call('incidents:diagnose', self::FIX));
-        $flags = IncidentLog::query()->where('incident_id', $id)->where('action', IncidentLogAction::FlaggedForReview)->get();
+        $flags = IncidentLog::query()->where('incident_id', $id)->reviewFlags()->get();
         $this->assertEqualsCanonicalizing(
             ['status_differs_from_last_log', 'duplicate_or_incoherent_log'],
             $flags->map(fn (IncidentLog $flag): mixed => $flag->metadata['check'] ?? null)->all(),
@@ -239,7 +235,7 @@ class DiagnoseIncidentsCommandTest extends TestCase
 
         $this->assertSame($afterFirstFix, $this->snapshot());
         $this->assertFalse(IncidentLog::query()->where('incident_id', $id)->where('action', IncidentLogAction::StatusReconciled)->exists());
-        $this->assertSame(1, IncidentLog::query()->where('incident_id', $id)->where('action', IncidentLogAction::FlaggedForReview)->count());
+        $this->assertSame(1, IncidentLog::query()->where('incident_id', $id)->reviewFlags()->count());
     }
 
     public function test_no_reconcile_on_a_trail_with_a_duplicate_and_fix_reports_the_work_it_uncovers(): void
@@ -304,9 +300,20 @@ class DiagnoseIncidentsCommandTest extends TestCase
         }
     }
 
-    private function incident(string $title): Incident
+    public function test_verbose_prints_the_exact_sql_each_check_runs(): void
     {
-        return Incident::query()->where('title', $title)->sole();
+        Artisan::call('incidents:diagnose', ['-v' => true]);
+        $output = Artisan::output();
+
+        foreach (app(IncidentDiagnostics::class)->checks() as $check) {
+            $this->assertStringContainsString($check->sql(), $output);
+        }
+    }
+
+    /** The report starts each row with "#id title"; the title may wrap, so only its first words are checked. */
+    private function assertListsIncident(string $output, Incident $incident): void
+    {
+        $this->assertStringContainsString("#{$incident->id} ".mb_substr($incident->title, 0, 12), $output);
     }
 
     private function fixAnswering(string $answer): PendingCommand

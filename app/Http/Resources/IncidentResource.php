@@ -23,12 +23,8 @@ class IncidentResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'store' => $this->store,
-            'status' => ['value' => $this->status->value, 'label' => $this->status->label()],
-            'priority' => [
-                'value' => $this->priority->value,
-                'label' => $this->priority->label(),
-                'impact' => $this->priority->impact(),
-            ],
+            'status' => $this->status->toOption(),
+            'priority' => [...$this->priority->toOption(), 'impact' => $this->priority->impact()],
             'requester_name' => $this->requester_name,
             'assigned_to' => $this->assigned_to,
             'created_at' => $this->created_at->toIso8601String(),
@@ -44,14 +40,18 @@ class IncidentResource extends JsonResource
         ];
     }
 
-    /** @return list<array{to: array{value: string, label: string}, action_label: string, requires_reason: bool, requires_confirmation: bool}> */
-    public static function transitionsFrom(IncidentStatus $from): array
+    /**
+     * @return list<array{to: array{value: string, label: string}, action_label: string, requires_reason: bool,
+     *     requires_confirmation: bool, destructive: bool}>
+     */
+    private static function transitionsFrom(IncidentStatus $from): array
     {
         return array_map(fn (IncidentStatus $to): array => [
-            'to' => ['value' => $to->value, 'label' => $to->label()],
+            'to' => $to->toOption(),
             'action_label' => $from->actionLabel($to),
             'requires_reason' => $from->requiresReason($to),
             'requires_confirmation' => $from->requiresConfirmation($to),
+            'destructive' => $from->isDestructive($to),
         ], $from->allowedTransitions());
     }
 }

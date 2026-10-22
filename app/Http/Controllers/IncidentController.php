@@ -16,6 +16,7 @@ use App\Models\Incident;
 use App\Queries\IncidentListQuery;
 use App\Queries\IncidentTimelineQuery;
 use App\Support\CurrentActor;
+use App\Support\Toast;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,34 +24,27 @@ use Inertia\Response;
 
 class IncidentController extends Controller
 {
-    /**
-     * Props are closures so that a partial reload (the quick filters ask only for incidents, counts and
-     * filters) evaluates just the queries it needs.
-     */
+    /** Props are closures so that a partial reload (the quick filters) evaluates just the queries it asks for. */
     public function index(Request $request, IncidentListQuery $list, CurrentActor $actor): Response
     {
         $filters = IncidentFilters::fromRequest($request);
 
         return Inertia::render('incidents/index', [
             'incidents' => fn () => IncidentResource::collection(
-                $list->paginate($filters, (int) config('incidents.per_page', 15)),
+                $list->paginate($filters, config()->integer('incidents.per_page')),
             ),
             'counts' => fn () => $list->countsByStatus($filters),
             'filters' => $filters->toArray(),
             'options' => fn () => [
-                'statuses' => array_map(
-                    fn (IncidentStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
-                    IncidentStatus::cases(),
-                ),
+                'statuses' => array_map(fn (IncidentStatus $status): array => $status->toOption(), IncidentStatus::cases()),
                 'priorities' => array_map(fn (IncidentPriority $priority): array => [
-                    'value' => $priority->value,
-                    'label' => $priority->label(),
+                    ...$priority->toOption(),
                     'impact' => $priority->impact(),
                     'sla_hours' => $priority->slaHours(),
                 ], IncidentPriority::cases()),
                 // Who can be assigned. Today it is the same list as the actors (shared `actor` prop); with real
                 // users "assignable technicians" and "people operating the panel" would be different queries.
-                'operators' => $actor->options(),
+                'operators' => $actor->operators(),
             ],
             'urls' => [
                 'index' => route('incidents.index'),
@@ -63,7 +57,7 @@ class IncidentController extends Controller
     {
         $incident = $createIncident->handle($request->toData(), $actor->get());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Incidencia #{$incident->id} abierta."]);
+        Toast::success("Incidencia #{$incident->id} abierta.");
 
         // Back to the unfiltered list, where the new incident is the first row.
         return to_route('incidents.index');

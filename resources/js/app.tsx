@@ -1,7 +1,6 @@
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-
-const appName = 'Panel operativo de incidencias';
+import { APP_NAME, LOADING_DELAY_MS } from '@/lib/app-config';
 
 // Set by the SecurityHeaders middleware; Inertia stamps it on the <style> tags of its progress bar.
 const nonce = document.querySelector<HTMLMetaElement>('meta[property="csp-nonce"]')?.nonce || undefined;
@@ -9,7 +8,7 @@ const nonce = document.querySelector<HTMLMetaElement>('meta[property="csp-nonce"
 const pages = import.meta.glob<{ default: ResolvedComponent }>('./pages/**/*.tsx');
 
 void createInertiaApp({
-    title: (title) => (title ? `${title} · ${appName}` : appName),
+    title: (title) => (title ? `${title} · ${APP_NAME}` : APP_NAME),
     resolve: async (name) => {
         const page = pages[`./pages/${name}.tsx`];
         if (!page) {
@@ -18,7 +17,8 @@ void createInertiaApp({
         return (await page()).default;
     },
     layout: () => AppLayout,
-    progress: { color: '#0086FF', delay: 150 },
+    // Inertia writes the colour into the progress bar's <style> tag as is, so a theme token works.
+    progress: { color: 'var(--color-brand)', delay: LOADING_DELAY_MS },
     nonce,
     strictMode: true,
 });

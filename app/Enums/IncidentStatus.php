@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasOption;
+
 /**
- * Incident lifecycle. This enum is the single source of truth for the state machine:
- * the actions enforce it, the API resources send the allowed transitions to the UI,
- * and the diagnostic uses it to judge whether a gap in the audit trail is explainable.
+ * Incident lifecycle and the single source of truth for the state machine: the actions enforce it, the resources
+ * send each incident's transitions to the UI and the diagnostic judges the gaps in the trail with it.
  *
  *   open ──► in_review ──► resolved ──(reopen, reason)──► open
  *                │  ▲
@@ -16,6 +17,8 @@ namespace App\Enums;
  */
 enum IncidentStatus: string
 {
+    use HasOption;
+
     case Open = 'open';
     case InReview = 'in_review';
     case Blocked = 'blocked';
@@ -29,6 +32,22 @@ enum IncidentStatus: string
             self::Blocked => 'Bloqueada',
             self::Resolved => 'Resuelta',
         };
+    }
+
+    /** The label for use inside a sentence. */
+    public function lowerLabel(): string
+    {
+        return mb_strtolower($this->label());
+    }
+
+    /** lowerLabel() for a value read from the database, which may not be a case: an unknown value is shown as stored. */
+    public static function lowerLabelOf(?string $value): string
+    {
+        if ($value === null) {
+            return 'sin valor';
+        }
+
+        return self::tryFrom($value)?->lowerLabel() ?? $value;
     }
 
     /**
@@ -70,6 +89,12 @@ enum IncidentStatus: string
     public function requiresConfirmation(self $to): bool
     {
         return $to === self::Blocked || $to === self::Resolved || $this->isReopening($to);
+    }
+
+    /** The UI shows it as a destructive action: blocking stops the work on the incident. */
+    public function isDestructive(self $to): bool
+    {
+        return $to === self::Blocked;
     }
 
     public function logActionFor(self $to): IncidentLogAction

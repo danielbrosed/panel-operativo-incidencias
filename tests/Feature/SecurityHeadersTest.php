@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/** Every security header, the Content-Security-Policy included. */
 class SecurityHeadersTest extends TestCase
 {
     use RefreshDatabase;
@@ -37,6 +38,16 @@ class SecurityHeadersTest extends TestCase
         $response->assertSee('<meta property="csp-nonce" nonce="'.$nonce.'">', escape: false);
     }
 
+    public function test_the_csp_never_allows_inline_or_eval_and_the_nonce_changes_every_request(): void
+    {
+        $first = (string) $this->get('/incidents')->headers->get('Content-Security-Policy');
+        $second = (string) $this->get('/incidents')->headers->get('Content-Security-Policy');
+
+        $this->assertStringNotContainsString('unsafe-inline', $first);
+        $this->assertStringNotContainsString('unsafe-eval', $first);
+        $this->assertNotSame($first, $second);
+    }
+
     public function test_report_mode_sends_the_report_only_header_instead(): void
     {
         config(['security.csp' => 'report']);
@@ -45,6 +56,19 @@ class SecurityHeadersTest extends TestCase
 
         $response->assertHeaderMissing('Content-Security-Policy');
         $this->assertNotEmpty($response->headers->get('Content-Security-Policy-Report-Only'));
+    }
+
+    public function test_an_unknown_csp_mode_enforces_the_policy_instead_of_disabling_it(): void
+    {
+        config(['security.csp' => 'Enforce']);
+
+        $this->get('/incidents')->assertHeader('Content-Security-Policy');
+    }
+
+    public function test_a_forwarded_https_header_from_an_untrusted_proxy_does_not_enable_hsts(): void
+    {
+        $this->get('/incidents', ['X-Forwarded-Proto' => 'https'])->assertHeaderMissing('Strict-Transport-Security');
+        $this->get('https://localhost/incidents')->assertHeader('Strict-Transport-Security');
     }
 
     public function test_not_found_pages_carry_the_headers_too(): void

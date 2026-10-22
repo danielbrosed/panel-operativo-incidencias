@@ -5,7 +5,7 @@
 | **Proyecto** | `danielbrosed/panel-operativo-incidencias` (prueba técnica para Optima Retail) |
 | **Auditor** | Daniel Brosed |
 | **Fecha** | 22 de octubre de 2026 |
-| **Versión auditada** | Rama `main` antes de hacer público el repositorio. Las correcciones están en el historial a continuación |
+| **Versión auditada** | Rama `main` antes de hacer público el repositorio, en dos rondas: la auditoría inicial (H-01 a H-26) y una segunda revisión independiente de la versión final (H-27 a H-37). Las correcciones están en el historial de commits |
 | **Método** | Revisión dirigida por el auditor y ejecutada con agentes de IA, con pruebas reproducibles (ver [Método](#método)) |
 | **Veredicto** | **Apto para publicar.** Sin hallazgos críticos ni altos explotables; los de severidad media y baja están corregidos y cubiertos por tests |
 
@@ -28,6 +28,10 @@ Las garantías de fondo aguantan pruebas reales:
 Los hallazgos estaban en los bordes. Entradas raras provocaban errores 500 en vez de errores de validación. Las
 restricciones CHECK de la base de datos se podían saltar por la intercalación. Y había valores por defecto que
 fallaban en abierto. Todos están corregidos.
+
+La segunda revisión, con ojos nuevos sobre la versión final, encontró uno de severidad media que se le había escapado
+a la primera: cerrar a mano un caso marcado dejaba esa incidencia sin vigilar aunque después alguien volviera a
+cambiar su estado por SQL. Está corregido, como los dos de severidad baja de esa ronda.
 
 ## Alcance
 
@@ -65,6 +69,9 @@ están en [`ai-process/prompts-agentes/`](../ai-process/prompts-agentes/).
 3. **Integridad de datos**: carreras reales con dos conexiones a MySQL, escrituras que se saltan la aplicación, el
    comando de diagnóstico ante 21 corrupciones distintas y su idempotencia.
 4. **Mi agente de seguridad** (`security`), en modo informe, como pasada final con ojos nuevos.
+5. **Segunda revisión independiente** de la versión final, buscando lo que las anteriores no vieron: el código más
+   nuevo (el cierre de casos marcados, el diagnóstico y el frontend), con pruebas en vivo, en el navegador y sobre el
+   historial de git.
 
 Las pruebas que merecían quedarse están en el repositorio: [`SecurityTest`](../tests/Feature/SecurityTest.php),
 [`SecurityHeadersTest`](../tests/Feature/SecurityHeadersTest.php), [`IntegrityTest`](../tests/Feature/IntegrityTest.php)
@@ -109,11 +116,23 @@ y los tests de validación y del diagnóstico.
 | H-24 | Informativa | Las cookies no llevan `Secure` por defecto | Documentado | `SESSION_SECURE_COOKIE=true` al desplegar por HTTPS (README) |
 | H-25 | Informativa | Las respuestas JSON de 404 nombran la clase del modelo | Aceptado | El código es público y la aplicación no pide JSON |
 | H-26 | Informativa | El historial de una ficha no tiene límite y se puede inflar con comentarios | Aceptado | Lo cubre el límite de escrituras y la condición de no exponer el panel sin autenticación (H-18) |
+| H-27 | Media | Una marca revisada con `incidents:review` se reconocía solo por comprobación y log de evidencia: si después alguien volvía a cambiar el estado por SQL, el diagnóstico lo daba por revisado y salía con 0 | Corregido | La revisión cubre solo el hallazgo revisado, también su detalle, que incluye el estado; test con una segunda manipulación |
+| H-28 | Baja | H-20 solo estaba cerrado en parte: la lista explícita dejaba pasar 421 caracteres invisibles, entre ellos las etiquetas Unicode (U+E0000 a U+E007F), que esconden texto que una persona no ve y un asistente de IA sí lee | Corregido | Se rechaza toda la clase `\p{Cf}` salvo ZWNJ y ZWJ, más los rellenos y los selectores de variación, en un único sitio (`UntrustedText`); los emoji compuestos siguen pasando; test |
+| H-29 | Baja | En local, `trustHosts()` está apagado y no hay autenticación: una web que redirija su dominio a 127.0.0.1 (*DNS rebinding*) podía leer y escribir el panel | Corregido | En local solo se responde a `localhost`, `127.0.0.1`, `[::1]` y el host de `APP_URL`; test |
+| H-30 | Informativa | La skill `incident-domain` mandaba ejecutar `migrate:fresh` sin el aviso de H-15 | Corregido | La comprobación final se hace sobre una base desechable |
+| H-31 | Informativa | Esta auditoría decía que toda escritura sin token devuelve 419; Laravel 13 acepta sin token las peticiones con `Sec-Fetch-Site: same-origin` | Corregido | Frase matizada (abajo). No es una vulnerabilidad: otra web no puede falsificar esa cabecera |
+| H-32 | Informativa | Tras un 419 o un 429, la vuelta atrás seguía el `Referer` sin comprobar el host. No era explotable: desde otro origen no hay token ni cabecera `X-Inertia` | Corregido | Se vuelve a la ruta del `Referer` dentro del propio host |
+| H-33 | Informativa | `incidents:review` anula todas las marcas activas de la incidencia, también las de otras comprobaciones | Documentado | El comando lista cada marca que anula; la revisión es por incidencia |
+| H-34 | Informativa | La paginación repetía en sus enlaces la query string entera, con parámetros inventados o un texto de búsqueda de miles de caracteres | Corregido | Los enlaces llevan solo los filtros ya normalizados |
+| H-35 | Informativa | La URL de vuelta al listado guardada en el navegador se devolvía como texto y no como la URL ya interpretada. No había redirección abierta | Corregido | Se devuelve la ruta y la query ya validadas contra el origen |
+| H-36 | Informativa | `checkVisibility()` sin comprobar si existe: en Safari anterior a 17.4 dejaba la página en blanco | Corregido | Comprobación y alternativa con `getClientRects()` |
+| H-37 | Informativa | `composer.json` autorizaba un plugin que no está en el lock, y la CI solo paraba con vulnerabilidades altas de npm | Corregido | `allow-plugins` vacío y `npm audit --audit-level=moderate` |
 
 ## Verificado sin hallazgos
 
-- **CSRF.** Toda escritura sin token devuelve 419, también con `_method` o `X-HTTP-Method-Override`. Las rutas GET no
-  tienen efectos.
+- **CSRF.** Una escritura sin token desde otro origen devuelve 419, también con `_method` o `X-HTTP-Method-Override`.
+  Laravel 13 acepta sin token las peticiones del mismo origen (`Sec-Fetch-Site: same-origin`, una cabecera que pone el
+  navegador y que otra web no puede falsificar). Las rutas GET no tienen efectos.
 - **XSS.** Las cargas almacenadas en título, descripción, solicitante, tienda, comentario y motivo se muestran como
   texto en la lista, la ficha, el historial, los avisos y el `<title>`. Los datos iniciales de la página usan
   `JSON_HEX_TAG`. No hay `dangerouslySetInnerHTML`.

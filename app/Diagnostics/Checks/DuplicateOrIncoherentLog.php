@@ -96,11 +96,11 @@ final class DuplicateOrIncoherentLog extends SqlCheck
     {
         $logId = (int) $row->log_id;
         $previousLogId = $row->previous_log_id === null ? null : (int) $row->previous_log_id;
-        $step = sprintf('«%s» → «%s»', self::label($row->old_value), self::label($row->new_value));
+        $step = sprintf('«%s» → «%s»', IncidentStatus::lowerLabelOf($row->old_value), IncidentStatus::lowerLabelOf($row->new_value));
 
         if ($row->kind === self::DUPLICATE && $previousLogId !== null) {
             return new Finding(
-                check: $this->key(),
+                checkKey: $this->key(),
                 incidentId: (int) $row->incident_id,
                 incidentTitle: $row->title,
                 evidenceLogId: $logId,
@@ -113,7 +113,7 @@ final class DuplicateOrIncoherentLog extends SqlCheck
         }
 
         return new Finding(
-            check: $this->key(),
+            checkKey: $this->key(),
             incidentId: (int) $row->incident_id,
             incidentTitle: $row->title,
             evidenceLogId: $logId,
@@ -121,7 +121,7 @@ final class DuplicateOrIncoherentLog extends SqlCheck
                 $previousLogId === null => sprintf('El log #%d (%s) es el primero de la incidencia y no es el de apertura.', $logId, $step),
                 $row->old_value !== $row->previous_new_value => sprintf(
                     'El log #%d (%s) no sigue al anterior, el #%d, que la dejó «%s».',
-                    $logId, $step, $previousLogId, self::label($row->previous_new_value),
+                    $logId, $step, $previousLogId, IncidentStatus::lowerLabelOf($row->previous_new_value),
                 ),
                 default => sprintf('El log #%d registra %s, que no es una transición permitida.', $logId, $step),
             },

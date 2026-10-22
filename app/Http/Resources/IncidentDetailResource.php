@@ -22,7 +22,6 @@ class IncidentDetailResource extends IncidentResource
         return [
             ...$incident,
             'description' => $this->description,
-            'updated_at' => $this->updated_at->toIso8601String(),
             'links' => [
                 ...$incident['links'],
                 'comments' => route('incidents.comments.store', $this->id),

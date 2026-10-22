@@ -16,8 +16,8 @@ export function formatDateTime(iso: string): string {
 }
 
 /** "hace 3 h", "dentro de 2 h", "ayer"; "ahora" under a minute. */
-export function formatRelative(iso: string, now: number = Date.now()): string {
-    const seconds = (new Date(iso).getTime() - now) / 1000;
+export function formatRelative(iso: string): string {
+    const seconds = (new Date(iso).getTime() - Date.now()) / 1000;
     const match = UNITS.find(([, size]) => Math.abs(seconds) >= size);
 
     return match ? relative.format(Math.trunc(seconds / match[1]), match[0]) : 'ahora';

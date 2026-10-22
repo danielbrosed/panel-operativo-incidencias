@@ -5,29 +5,18 @@ declare(strict_types=1);
 namespace Tests\Feature\Incidents;
 
 use App\Actions\Incidents\ChangeIncidentStatus;
-use App\Actions\Incidents\CreateIncident;
 use App\Data\Actor;
-use App\Data\NewIncidentData;
-use App\Enums\IncidentPriority;
 use App\Enums\IncidentStatus;
-use App\Models\Incident;
+use App\Support\CurrentActor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\CreatesIncidents;
 use Tests\TestCase;
 
 class CommentsAndTimelineTest extends TestCase
 {
+    use CreatesIncidents;
     use RefreshDatabase;
-
-    private function openIncident(): Incident
-    {
-        return app(CreateIncident::class)->handle(new NewIncidentData(
-            title: 'Goteras en el falso techo',
-            description: 'Entra agua junto al escaparate cuando llueve.',
-            priority: IncidentPriority::Medium,
-            requesterName: 'Iker Ruiz',
-        ), new Actor('Lucía Romero'));
-    }
 
     public function test_an_operator_adds_a_comment(): void
     {
@@ -40,7 +29,7 @@ class CommentsAndTimelineTest extends TestCase
 
         $comment = $incident->comments()->sole();
         $this->assertSame('Solicitud enviada al centro comercial.', $comment->body);
-        $this->assertSame('Marta Ruiz', $comment->author_name);
+        $this->assertSame(CurrentActor::operatorsFromConfig()[0], $comment->author_name, 'the default actor');
         $this->assertSame(1, $incident->logs()->count(), 'a comment does not write a trail entry');
     }
 
@@ -66,7 +55,7 @@ class CommentsAndTimelineTest extends TestCase
         $this->get("/incidents/{$incident->id}")->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->component('incidents/show')
             ->where('incident.id', $incident->id)
-            ->where('incident.description', 'Entra agua junto al escaparate cuando llueve.')
+            ->where('incident.description', $incident->description)
             ->where('incident.flagged_for_review', false)
             ->has('timeline', 3)
             ->where('timeline.0.type', 'log')
@@ -83,5 +72,6 @@ class CommentsAndTimelineTest extends TestCase
     {
         $this->get('/incidents/999')->assertNotFound();
         $this->post('/incidents/999/comments', ['body' => 'Hola'])->assertNotFound();
+        $this->get('/incidents/abc')->assertNotFound();
     }
 }

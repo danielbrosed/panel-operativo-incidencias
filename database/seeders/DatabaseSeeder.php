@@ -13,7 +13,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // A consistent history, built through the application's own actions.
             DemoIncidentsSeeder::class,
-            // Then a few incidents broken on purpose with raw SQL, for the diagnostic exercise (see README).
+            // Then a few incidents broken with raw SQL, for the diagnostic exercise (see README).
             InconsistenciesSeeder::class,
         ]);
     }

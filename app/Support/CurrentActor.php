@@ -9,10 +9,8 @@ use Illuminate\Contracts\Session\Session;
 use InvalidArgumentException;
 
 /**
- * Who is operating the panel. There is no authentication in this exercise: the person picks a name from
- * config('incidents.operators') ("Actuando como…") and it is kept in the session.
- *
- * This is the only place that knows where the actor comes from; with real users it becomes auth()->user().
+ * Who is operating the panel: without authentication, a name picked from config('incidents.operators') and kept in
+ * the session. The only place that knows where the actor comes from; with real users it becomes auth()->user().
  */
 final class CurrentActor
 {
@@ -28,7 +26,7 @@ final class CurrentActor
     public static function operatorsFromConfig(): array
     {
         $operators = array_values(array_filter(
-            (array) config('incidents.operators', []),
+            config()->array('incidents.operators'),
             fn (mixed $name): bool => is_string($name) && $name !== '',
         ));
 
@@ -56,12 +54,12 @@ final class CurrentActor
     }
 
     /** @return non-empty-list<string> */
-    public function options(): array
+    public function operators(): array
     {
         return $this->operators;
     }
 
-    public function isOperator(string $name): bool
+    private function isOperator(string $name): bool
     {
         return in_array($name, $this->operators, true);
     }

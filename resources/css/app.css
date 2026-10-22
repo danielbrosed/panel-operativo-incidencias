@@ -47,6 +47,11 @@
     background-image: linear-gradient(90deg, var(--color-brand-strong) 0%, var(--color-brand) 100%);
 }
 
+/* Small uppercase label above a value or a group: table headings, history entries. */
+@utility eyebrow {
+    @apply text-xs font-semibold tracking-wide text-muted uppercase;
+}
+
 @layer base {
     :focus-visible {
         outline: 3px solid var(--color-brand);

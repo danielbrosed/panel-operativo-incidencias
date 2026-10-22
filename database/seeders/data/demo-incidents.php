@@ -7,10 +7,10 @@ declare(strict_types=1);
  *
  * Times are relative to the moment the seeder runs, so "overdue" stays meaningful whenever it is run:
  *  - opened_hours_ago: when the incident was opened;
- *  - steps:    [hours after opening, target status, operator, reason or null];
- *  - comments: [hours after opening, operator, text].
+ *  - steps:    hours after opening, target status, operator and reason (or null);
+ *  - comments: hours after opening, operator and text.
  *
- * Three of these incidents are broken on purpose afterwards by InconsistenciesSeeder (see README):
+ * Three of these incidents are broken afterwards by InconsistenciesSeeder (see README):
  * "Fuga de agua en aseo de clientes", "Persiana metálica de acceso no sube" and "Puerta automática no abre".
  */
 return [
@@ -25,7 +25,7 @@ return [
         'opened_hours_ago' => 7,
         'steps' => [],
         'comments' => [
-            [0.5, 'Marta Ruiz', 'La encargada confirma que el cuadro de la máquina no tiene ningún diferencial saltado.'],
+            ['hours' => 0.5, 'actor' => 'Marta Ruiz', 'body' => 'La encargada confirma que el cuadro de la máquina no tiene ningún diferencial saltado.'],
         ],
     ],
     [
@@ -65,7 +65,7 @@ return [
         'comments' => [],
     ],
     [
-        // Broken on purpose by InconsistenciesSeeder (case A).
+        // Broken by InconsistenciesSeeder (case A).
         'title' => 'Fuga de agua en aseo de clientes',
         'description' => 'Pierde agua la llave de paso del lavabo del aseo de clientes. Se ha cerrado el aseo de forma provisional.',
         'priority' => 'medium',
@@ -75,10 +75,10 @@ return [
         'opened_by' => 'Lucía Romero',
         'opened_hours_ago' => 26,
         'steps' => [
-            [1, 'in_review', 'Lucía Romero', null],
+            ['hours' => 1, 'to' => 'in_review', 'actor' => 'Lucía Romero', 'reason' => null],
         ],
         'comments' => [
-            [1.5, 'Lucía Romero', 'Fontanero avisado. Visita prevista mañana a primera hora.'],
+            ['hours' => 1.5, 'actor' => 'Lucía Romero', 'body' => 'Fontanero avisado. Visita prevista mañana a primera hora.'],
         ],
     ],
     [
@@ -91,10 +91,10 @@ return [
         'opened_by' => 'Marta Ruiz',
         'opened_hours_ago' => 3,
         'steps' => [
-            [0.5, 'in_review', 'Jordi Vidal', null],
+            ['hours' => 0.5, 'to' => 'in_review', 'actor' => 'Jordi Vidal', 'reason' => null],
         ],
         'comments' => [
-            [0.6, 'Jordi Vidal', 'Técnico de PCI en camino. Llegada estimada en 45 minutos.'],
+            ['hours' => 0.6, 'actor' => 'Jordi Vidal', 'body' => 'Técnico de PCI en camino. Llegada estimada en 45 minutos.'],
         ],
     ],
     [
@@ -107,7 +107,7 @@ return [
         'opened_by' => 'Andrés Molina',
         'opened_hours_ago' => 10,
         'steps' => [
-            [2, 'in_review', 'Andrés Molina', null],
+            ['hours' => 2, 'to' => 'in_review', 'actor' => 'Andrés Molina', 'reason' => null],
         ],
         'comments' => [],
     ],
@@ -122,18 +122,18 @@ return [
         'opened_by' => 'Marta Ruiz',
         'opened_hours_ago' => 120,
         'steps' => [
-            [3, 'in_review', 'Jordi Vidal', null],
-            [24, 'resolved', 'Jordi Vidal', null],
-            [48, 'open', 'Marta Ruiz', 'El cierre vuelve a fallar: la tienda avisa de que la puerta se queda entreabierta por la noche.'],
-            [50, 'in_review', 'Jordi Vidal', null],
+            ['hours' => 3, 'to' => 'in_review', 'actor' => 'Jordi Vidal', 'reason' => null],
+            ['hours' => 24, 'to' => 'resolved', 'actor' => 'Jordi Vidal', 'reason' => null],
+            ['hours' => 48, 'to' => 'open', 'actor' => 'Marta Ruiz', 'reason' => 'El cierre vuelve a fallar: la tienda avisa de que la puerta se queda entreabierta por la noche.'],
+            ['hours' => 50, 'to' => 'in_review', 'actor' => 'Jordi Vidal', 'reason' => null],
         ],
         'comments' => [
-            [23, 'Jordi Vidal', 'Cierrapuertas ajustado y probado diez veces.'],
-            [49, 'Jordi Vidal', 'Probablemente haya que sustituir el cierrapuertas entero. Pido presupuesto.'],
+            ['hours' => 23, 'actor' => 'Jordi Vidal', 'body' => 'Cierrapuertas ajustado y probado diez veces.'],
+            ['hours' => 49, 'actor' => 'Jordi Vidal', 'body' => 'Probablemente haya que sustituir el cierrapuertas entero. Pido presupuesto.'],
         ],
     ],
     [
-        // Broken on purpose by InconsistenciesSeeder (case C).
+        // Broken by InconsistenciesSeeder (case C).
         'title' => 'Puerta automática no abre',
         'description' => 'La puerta automática de la entrada principal no detecta a los clientes. Se ha dejado abierta en modo manual.',
         'priority' => 'high',
@@ -143,8 +143,8 @@ return [
         'opened_by' => 'Lucía Romero',
         'opened_hours_ago' => 30,
         'steps' => [
-            [0.5, 'in_review', 'Andrés Molina', null],
-            [2, 'blocked', 'Andrés Molina', 'Pendiente de pieza: motor del operador de la puerta. El fabricante da un plazo de 48 horas.'],
+            ['hours' => 0.5, 'to' => 'in_review', 'actor' => 'Andrés Molina', 'reason' => null],
+            ['hours' => 2, 'to' => 'blocked', 'actor' => 'Andrés Molina', 'reason' => 'Pendiente de pieza: motor del operador de la puerta. El fabricante da un plazo de 48 horas.'],
         ],
         'comments' => [],
     ],
@@ -158,15 +158,15 @@ return [
         'opened_by' => 'Lucía Romero',
         'opened_hours_ago' => 96,
         'steps' => [
-            [1, 'in_review', 'Lucía Romero', null],
-            [5, 'blocked', 'Lucía Romero', 'Hace falta autorización del centro comercial para subir a la cubierta.'],
+            ['hours' => 1, 'to' => 'in_review', 'actor' => 'Lucía Romero', 'reason' => null],
+            ['hours' => 5, 'to' => 'blocked', 'actor' => 'Lucía Romero', 'reason' => 'Hace falta autorización del centro comercial para subir a la cubierta.'],
         ],
         'comments' => [
-            [6, 'Lucía Romero', 'Solicitud enviada a la gerencia del centro comercial.'],
+            ['hours' => 6, 'actor' => 'Lucía Romero', 'body' => 'Solicitud enviada a la gerencia del centro comercial.'],
         ],
     ],
     [
-        // Broken on purpose by InconsistenciesSeeder (case B).
+        // Broken by InconsistenciesSeeder (case B).
         'title' => 'Persiana metálica de acceso no sube',
         'description' => 'La persiana de la entrada se queda a medio subir. La tienda no puede abrir al público.',
         'priority' => 'high',
@@ -176,11 +176,11 @@ return [
         'opened_by' => 'Marta Ruiz',
         'opened_hours_ago' => 72,
         'steps' => [
-            [0.5, 'in_review', 'Jordi Vidal', null],
-            [3, 'resolved', 'Jordi Vidal', null],
+            ['hours' => 0.5, 'to' => 'in_review', 'actor' => 'Jordi Vidal', 'reason' => null],
+            ['hours' => 3, 'to' => 'resolved', 'actor' => 'Jordi Vidal', 'reason' => null],
         ],
         'comments' => [
-            [2.9, 'Jordi Vidal', 'Final de carrera sustituido. La persiana sube y baja sin problema.'],
+            ['hours' => 2.9, 'actor' => 'Jordi Vidal', 'body' => 'Final de carrera sustituido. La persiana sube y baja sin problema.'],
         ],
     ],
     [
@@ -193,11 +193,11 @@ return [
         'opened_by' => 'Andrés Molina',
         'opened_hours_ago' => 192,
         'steps' => [
-            [4, 'in_review', 'Andrés Molina', null],
-            [48, 'resolved', 'Andrés Molina', null],
+            ['hours' => 4, 'to' => 'in_review', 'actor' => 'Andrés Molina', 'reason' => null],
+            ['hours' => 48, 'to' => 'resolved', 'actor' => 'Andrés Molina', 'reason' => null],
         ],
         'comments' => [
-            [47, 'Andrés Molina', 'Tratamiento aplicado. Segunda pasada programada dentro de 15 días.'],
+            ['hours' => 47, 'actor' => 'Andrés Molina', 'body' => 'Tratamiento aplicado. Segunda pasada programada dentro de 15 días.'],
         ],
     ],
     [
@@ -210,8 +210,8 @@ return [
         'opened_by' => 'Marta Ruiz',
         'opened_hours_ago' => 144,
         'steps' => [
-            [1, 'in_review', 'Jordi Vidal', null],
-            [3, 'resolved', 'Jordi Vidal', null],
+            ['hours' => 1, 'to' => 'in_review', 'actor' => 'Jordi Vidal', 'reason' => null],
+            ['hours' => 3, 'to' => 'resolved', 'actor' => 'Jordi Vidal', 'reason' => null],
         ],
         'comments' => [],
     ],
@@ -225,8 +225,8 @@ return [
         'opened_by' => 'Lucía Romero',
         'opened_hours_ago' => 240,
         'steps' => [
-            [24, 'in_review', 'Lucía Romero', null],
-            [72, 'resolved', 'Lucía Romero', null],
+            ['hours' => 24, 'to' => 'in_review', 'actor' => 'Lucía Romero', 'reason' => null],
+            ['hours' => 72, 'to' => 'resolved', 'actor' => 'Lucía Romero', 'reason' => null],
         ],
         'comments' => [],
     ],
@@ -240,13 +240,13 @@ return [
         'opened_by' => 'Marta Ruiz',
         'opened_hours_ago' => 288,
         'steps' => [
-            [2, 'in_review', 'Jordi Vidal', null],
-            [4, 'blocked', 'Jordi Vidal', 'El error es del compresor; hay que esperar la autorización del presupuesto por parte de la marca.'],
-            [48, 'in_review', 'Jordi Vidal', null],
-            [51, 'resolved', 'Jordi Vidal', null],
+            ['hours' => 2, 'to' => 'in_review', 'actor' => 'Jordi Vidal', 'reason' => null],
+            ['hours' => 4, 'to' => 'blocked', 'actor' => 'Jordi Vidal', 'reason' => 'El error es del compresor; hay que esperar la autorización del presupuesto por parte de la marca.'],
+            ['hours' => 48, 'to' => 'in_review', 'actor' => 'Jordi Vidal', 'reason' => null],
+            ['hours' => 51, 'to' => 'resolved', 'actor' => 'Jordi Vidal', 'reason' => null],
         ],
         'comments' => [
-            [47, 'Marta Ruiz', 'Presupuesto aprobado por la marca.'],
+            ['hours' => 47, 'actor' => 'Marta Ruiz', 'body' => 'Presupuesto aprobado por la marca.'],
         ],
     ],
     [

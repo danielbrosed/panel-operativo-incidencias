@@ -38,9 +38,7 @@ class TimelineEntryResource extends JsonResource
         return [
             'type' => 'log',
             'id' => $entry->id,
-            'action' => ['value' => $entry->action->value, 'label' => $entry->action->label()],
-            'old_value' => $entry->old_value,
-            'new_value' => $entry->new_value,
+            'action' => $entry->action->toOption(),
             'old_label' => self::statusLabel($entry->old_value),
             'new_label' => self::statusLabel($entry->new_value),
             'user_name' => $entry->user_name,
@@ -48,10 +46,7 @@ class TimelineEntryResource extends JsonResource
             'detail' => is_string($metadata['detail'] ?? null) ? $metadata['detail'] : null,
             'inferred' => ($metadata['inferred'] ?? false) === true,
             'created_at' => $entry->created_at->toIso8601String(),
-            'voided' => $entry->isVoided() ? [
-                'at' => $entry->voided_at?->toIso8601String(),
-                'reason' => $entry->voided_reason,
-            ] : null,
+            'voided' => $entry->isVoided() ? ['reason' => $entry->voided_reason] : null,
         ];
     }
 

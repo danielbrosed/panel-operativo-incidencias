@@ -2,15 +2,31 @@ import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input, Select } from '@/components/ui/form-controls';
 import { IconClose, IconSearch } from '@/components/ui/icons';
-import type { IncidentFiltersState } from '@/hooks/use-incident-filters';
 import type { IncidentPriorityValue, PriorityOption } from '@/types/incident';
 
 interface FilterBarProps {
-    state: IncidentFiltersState;
+    search: string;
+    priority: IncidentPriorityValue | null;
     priorities: PriorityOption[];
+    filtered: boolean;
+    onSearchChange: (search: string) => void;
+    onSearchSubmit: () => void;
+    onSearchClear: () => void;
+    onPriorityChange: (priority: IncidentPriorityValue | null) => void;
+    onClearAll: () => void;
 }
 
-export function FilterBar({ state, priorities }: FilterBarProps) {
+export function FilterBar({
+    search,
+    priority,
+    priorities,
+    filtered,
+    onSearchChange,
+    onSearchSubmit,
+    onSearchClear,
+    onPriorityChange,
+    onClearAll,
+}: FilterBarProps) {
     return (
         <div className="flex flex-col gap-3 md:flex-row md:items-end">
             <form
@@ -18,7 +34,7 @@ export function FilterBar({ state, priorities }: FilterBarProps) {
                 className="flex-1"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    state.submitSearch();
+                    onSearchSubmit();
                 }}
             >
                 <Field id="filter-search" label="Buscar">
@@ -29,17 +45,18 @@ export function FilterBar({ state, priorities }: FilterBarProps) {
                                 {...control}
                                 type="search"
                                 name="q"
+                                // Mirrors SEARCH_MAX_LENGTH in app/Data/IncidentFilters.php.
                                 maxLength={100}
                                 autoComplete="off"
                                 placeholder="Texto, tienda o persona"
-                                value={state.search}
-                                onChange={(event) => state.changeSearch(event.target.value)}
-                                className="pr-11 pl-11 [&::-webkit-search-cancel-button]:appearance-none"
+                                value={search}
+                                onChange={(event) => onSearchChange(event.target.value)}
+                                className="px-11 [&::-webkit-search-cancel-button]:appearance-none"
                             />
-                            {state.search !== '' && (
+                            {search !== '' && (
                                 <button
                                     type="button"
-                                    onClick={state.clearSearch}
+                                    onClick={onSearchClear}
                                     aria-label="Borrar la búsqueda"
                                     className="absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-surface hover:text-navy"
                                 >
@@ -55,25 +72,25 @@ export function FilterBar({ state, priorities }: FilterBarProps) {
                 {(control) => (
                     <Select
                         {...control}
-                        value={state.filters.priority ?? ''}
+                        value={priority ?? ''}
                         onChange={(event) =>
-                            state.setPriority(
+                            onPriorityChange(
                                 event.target.value === '' ? null : (event.target.value as IncidentPriorityValue),
                             )
                         }
                     >
                         <option value="">Todas</option>
-                        {priorities.map((priority) => (
-                            <option key={priority.value} value={priority.value}>
-                                {priority.label}
+                        {priorities.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
                             </option>
                         ))}
                     </Select>
                 )}
             </Field>
 
-            {state.isFiltered && (
-                <Button variant="link" onClick={state.clearAll} className="self-start md:h-10 md:self-auto">
+            {filtered && (
+                <Button variant="link" onClick={onClearAll} className="self-start md:h-10 md:self-auto">
                     Quitar filtros
                 </Button>
             )}

@@ -20,7 +20,7 @@ Marca cada punto mirando el diff, no de memoria. Si algo no aplica, dilo.
 ## Errores
 
 - [ ] Cada error de dominio llega al formulario correcto (`errorBag`) y en español.
-- [ ] Ningún 409 a Inertia; 419 y 429 vuelven atrás con un aviso legible.
+- [ ] Ningún 409 (Inertia lo reserva); 419 y 429 vuelven atrás con un aviso legible y sin perder lo escrito.
 - [ ] Los filtros GET con valores raros se ignoran, no rompen la página.
 
 ## Frontend

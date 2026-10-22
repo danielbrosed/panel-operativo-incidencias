@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\IncidentLogAction;
 use App\Enums\IncidentPriority;
 use App\Enums\IncidentStatus;
 use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
-use Closure;
 use Database\Factories\IncidentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,10 +31,10 @@ class Incident extends Model
     /** @use HasFactory<IncidentFactory> */
     use HasFactory;
 
-    /**
-     * `status` and `due_at` are left out on purpose: the status only changes through
-     * App\Actions\Incidents\ChangeIncidentStatus, and due_at is fixed when the incident is opened.
-     */
+    /** Derived from the trail instead of a column, so the badge has a single source of truth. */
+    private const REVIEW_FLAG = 'activeReviewFlags as flagged_for_review';
+
+    /** Not `status` (only ChangeIncidentStatus changes it) nor `due_at` (fixed when the incident is opened). */
     protected $fillable = [
         'title',
         'description',
@@ -62,41 +59,40 @@ class Incident extends Model
         return $this->hasMany(IncidentLog::class);
     }
 
+    /**
+     * Manual-review flags the diagnostic left and nobody has reviewed yet.
+     *
+     * @return HasMany<IncidentLog, $this>
+     */
+    public function activeReviewFlags(): HasMany
+    {
+        return $this->logs()->reviewFlags()->active();
+    }
+
     /** @return HasMany<IncidentComment, $this> */
     public function comments(): HasMany
     {
         return $this->hasMany(IncidentComment::class);
     }
 
-    public function isOverdue(?CarbonInterface $now = null): bool
+    public function isOverdue(): bool
     {
-        return $this->status !== IncidentStatus::Resolved && $this->due_at->isBefore($now ?? now());
+        return $this->status !== IncidentStatus::Resolved && $this->due_at->isBefore(now());
     }
 
     /**
-     * Adds a boolean `flagged_for_review` attribute: true when the diagnostic left a manual-review mark.
-     * Derived from the trail instead of a column, so there is a single source of truth.
+     * Adds a boolean `flagged_for_review` attribute: true while an active review flag exists.
      *
      * @param  Builder<Incident>  $query
      */
     public function scopeWithReviewFlag(Builder $query): void
     {
-        $query->withExists(self::reviewFlag());
+        $query->withExists(self::REVIEW_FLAG);
     }
 
     /** Same as the withReviewFlag scope, for an incident that is already loaded. */
     public function loadReviewFlag(): static
     {
-        return $this->loadExists(self::reviewFlag());
-    }
-
-    /** @return array<string, Closure(Builder<IncidentLog>): void> */
-    private static function reviewFlag(): array
-    {
-        return [
-            'logs as flagged_for_review' => function (Builder $logs): void {
-                $logs->where('action', IncidentLogAction::FlaggedForReview)->whereNull('voided_at');
-            },
-        ];
+        return $this->loadExists(self::REVIEW_FLAG);
     }
 }

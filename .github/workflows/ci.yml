@@ -55,12 +55,18 @@ jobs:
           node-version: '24'
           cache: npm
 
-      - run: composer validate --strict
-      - run: composer install --no-interaction --no-progress --prefer-dist
-      - run: cp .env.example .env && php artisan key:generate
-      - run: npm ci
-      - run: npm run build
+      - name: Validate composer.json and the lock file
+        run: composer validate --strict
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Create .env from the example
+        run: cp .env.example .env && php artisan key:generate
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Build the frontend
+        run: npm run build
 
+      # The same checks as `composer check`, one step each so a failure names its tool.
       - name: Code style (Pint)
         run: vendor/bin/pint --test
       - name: Static analysis (Larastan)
@@ -84,24 +90,32 @@ jobs:
           php artisan incidents:diagnose
 
   frontend:
-    name: Frontend build · ${{ matrix.os }}
+    name: Frontend build · ${{ matrix.os }} · Node ${{ matrix.node }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['24']
+        include:
+          # The minimum in package.json "engines" and the README.
+          - os: ubuntu-latest
+            node: '22.12'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: ${{ matrix.node }}
           cache: npm
-      - run: npm ci
-      - run: npm run types
-      - run: npm run build
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Type check
+        run: npm run types
+      - name: Build the frontend
+        run: npm run build
 
   audit:
     name: Dependency audit
@@ -116,5 +130,7 @@ jobs:
           php-version: '8.4'
           coverage: none
           tools: composer:v2
-      - run: composer audit --locked --abandoned=report
-      - run: npm audit --audit-level=high
+      - name: Audit PHP dependencies
+        run: composer audit --locked --abandoned=report
+      - name: Audit Node dependencies
+        run: npm audit --audit-level=moderate

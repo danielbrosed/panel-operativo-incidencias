@@ -10,12 +10,12 @@ use App\Diagnostics\Fixes\Fix;
 final readonly class Finding
 {
     /**
-     * @param  string  $check  key of the check that found it
+     * @param  string  $checkKey  SqlCheck::key() of the check that found it
      * @param  int|null  $evidenceLogId  the incident_logs row that shows the problem (null: the incident has no trail)
      * @param  string  $detail  what is wrong, in Spanish
      */
     public function __construct(
-        public string $check,
+        public string $checkKey,
         public int $incidentId,
         public string $incidentTitle,
         public ?int $evidenceLogId,

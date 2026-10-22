@@ -8,15 +8,12 @@ use App\Actions\Incidents\ChangeIncidentStatus;
 use App\Http\Requests\ChangeIncidentStatusRequest;
 use App\Models\Incident;
 use App\Support\CurrentActor;
+use App\Support\Toast;
 use Illuminate\Http\RedirectResponse;
-use Inertia\Inertia;
 
 class IncidentStatusController extends Controller
 {
-    /**
-     * Domain errors (illegal transition, stale status, missing reason) are thrown by the action and turned into
-     * validation errors in bootstrap/app.php, so they come back to the same dialog like any other error.
-     */
+    /** The action's rule violations come back to the same dialog as validation errors (bootstrap/app.php). */
     public function __invoke(
         ChangeIncidentStatusRequest $request,
         Incident $incident,
@@ -31,10 +28,7 @@ class IncidentStatusController extends Controller
             $request->reason(),
         );
 
-        Inertia::flash('toast', [
-            'type' => 'success',
-            'message' => sprintf('Incidencia #%d: %s.', $updated->id, mb_strtolower($updated->status->label())),
-        ]);
+        Toast::success(sprintf('Incidencia #%d: %s.', $updated->id, $updated->status->lowerLabel()));
 
         return back();
     }

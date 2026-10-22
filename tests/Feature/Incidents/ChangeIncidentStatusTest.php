@@ -5,33 +5,23 @@ declare(strict_types=1);
 namespace Tests\Feature\Incidents;
 
 use App\Actions\Incidents\ChangeIncidentStatus;
-use App\Actions\Incidents\CreateIncident;
 use App\Data\Actor;
-use App\Data\NewIncidentData;
 use App\Enums\IncidentLogAction;
-use App\Enums\IncidentPriority;
 use App\Enums\IncidentStatus;
 use App\Models\Incident;
 use App\Models\IncidentLog;
+use App\Support\CurrentActor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Concerns\CreatesIncidents;
 use Tests\TestCase;
 
 class ChangeIncidentStatusTest extends TestCase
 {
+    use CreatesIncidents;
     use RefreshDatabase;
-
-    private function openIncident(): Incident
-    {
-        return app(CreateIncident::class)->handle(new NewIncidentData(
-            title: 'Puerta automática no abre',
-            description: 'No detecta a los clientes en la entrada principal.',
-            priority: IncidentPriority::High,
-            requesterName: 'Óscar Prieto',
-        ), new Actor('Marta Ruiz'));
-    }
 
     private function moveTo(Incident $incident, IncidentStatus ...$path): Incident
     {
@@ -58,7 +48,8 @@ class ChangeIncidentStatusTest extends TestCase
         $this->assertSame(IncidentLogAction::StatusChanged, $log->action);
         $this->assertSame('open', $log->old_value);
         $this->assertSame('in_review', $log->new_value);
-        $this->assertSame('Marta Ruiz', $log->user_name);
+        $this->assertSame(CurrentActor::operatorsFromConfig()[0], $log->user_name, 'the default actor');
+        $this->assertNull($log->metadata);
         $this->assertTrue($log->created_at->equalTo(now()));
     }
 
@@ -92,6 +83,21 @@ class ChangeIncidentStatusTest extends TestCase
         $this->assertSame(['reason' => 'Esperando la pieza del fabricante.'], $log->metadata);
     }
 
+    public function test_an_optional_note_when_resolving_is_kept_as_the_reason(): void
+    {
+        $incident = $this->moveTo($this->openIncident(), IncidentStatus::InReview);
+
+        $this->patch("/incidents/{$incident->id}/status", [
+            'status' => 'resolved',
+            'expected_status' => 'in_review',
+            'reason' => '  Sensor de presencia sustituido.  ',
+        ])->assertSessionHasNoErrors();
+
+        $log = $incident->logs()->latest('id')->firstOrFail();
+        $this->assertSame('resolved', $log->new_value);
+        $this->assertSame(['reason' => 'Sensor de presencia sustituido.'], $log->metadata);
+    }
+
     public function test_reopening_a_resolved_incident_leaves_an_explicit_reopen_entry(): void
     {
         $incident = $this->moveTo($this->openIncident(), IncidentStatus::InReview, IncidentStatus::Resolved);
@@ -122,15 +128,6 @@ class ChangeIncidentStatusTest extends TestCase
         $this->assertStringContainsString('«bloqueada» mientras la mirabas', (string) session('errors')?->first('status'));
         $this->assertSame(IncidentStatus::Blocked, $incident->fresh()?->status);
         $this->assertSame(3, $incident->logs()->count(), 'nothing written on top of the other person\'s change');
-    }
-
-    public function test_json_clients_get_409_for_a_stale_status(): void
-    {
-        $incident = $this->moveTo($this->openIncident(), IncidentStatus::InReview, IncidentStatus::Blocked);
-
-        $this->patchJson("/incidents/{$incident->id}/status", ['status' => 'resolved', 'expected_status' => 'in_review'])
-            ->assertStatus(409)
-            ->assertJsonValidationErrors('status');
     }
 
     public function test_status_and_log_are_committed_together_or_not_at_all(): void

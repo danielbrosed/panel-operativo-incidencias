@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * Breaks the demo data on purpose, the way it happens in real life: writes that bypass the application. It uses
- * the query builder instead of the models precisely so that none of the application's guards apply.
- * `php artisan incidents:diagnose` must report these four cases, each one in its own check (see README).
+ * Breaks the demo data the way it happens in real life: with the query builder instead of the models, so none of the
+ * application's guards apply. `php artisan incidents:diagnose` must report these four cases: A in check 1, B in
+ * check 2, and C and D both in check 3 (see README).
  */
 class InconsistenciesSeeder extends Seeder
 {

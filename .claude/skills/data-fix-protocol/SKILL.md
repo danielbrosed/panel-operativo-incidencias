@@ -20,7 +20,10 @@ futura, el historial no empieza por `created` o la misma incidencia tiene un log
 
 Un caso marcado lo cierra **una persona** con `php artisan incidents:review {id} --actor=… --reason=…`: si el hueco es
 un único paso permitido al final del historial lo registra firmado por ella y con su motivo, y anula la marca como
-«Revisada por…». Un agente de IA nunca ejecuta ese comando: el autor y el motivo tienen que ser reales.
+«Revisada por…». Sobre datos reales, un agente de IA nunca ejecuta ese comando: el autor y el motivo tienen que ser
+reales (en una base desechable con los datos de ejemplo, para probarlo, sí). La revisión
+cubre solo el hallazgo revisado (misma comprobación, mismo log de evidencia y mismo detalle, que incluye el estado): si
+después alguien vuelve a cambiar el estado por fuera, es un hallazgo nuevo y se vuelve a avisar.
 
 ## Nunca
 

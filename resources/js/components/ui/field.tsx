@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { cx } from '@/lib/cx';
 
 /** Props a control needs to be tied to its label, hint and error. */
-export interface ControlProps {
+interface ControlProps {
     id: string;
     'aria-invalid': true | undefined;
     'aria-describedby': string | undefined;

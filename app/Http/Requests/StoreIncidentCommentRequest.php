@@ -19,6 +19,6 @@ class StoreIncidentCommentRequest extends FormRequest
 
     public function body(): string
     {
-        return $this->string('body')->trim()->toString();
+        return $this->string('body')->toString();
     }
 }

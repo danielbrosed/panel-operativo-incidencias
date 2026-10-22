@@ -11,8 +11,8 @@ use App\Enums\IncidentStatus;
 use App\Models\Incident;
 
 /**
- * Writes the single missing step of the trail as a status_reconciled entry. It is dated when the fix runs and
- * signed by the diagnostic, because the real date and author are unknown; metadata.inferred says so.
+ * Writes the single missing step as a status_reconciled entry, dated when the fix runs and signed by the diagnostic
+ * because the real date and author are unknown; metadata.inferred says so.
  */
 final readonly class ReconcileStatus implements Fix
 {
@@ -31,9 +31,14 @@ final readonly class ReconcileStatus implements Fix
         return sprintf(
             'Automática. Se añade un log status_reconciled «%s» → «%s» con la fecha de la corrección (inferred): '.
             'es el único paso posible y no exige motivo.',
-            mb_strtolower($this->from->label()),
-            mb_strtolower($this->to->label()),
+            $this->from->lowerLabel(),
+            $this->to->lowerLabel(),
         );
+    }
+
+    public function appliedMessage(): string
+    {
+        return sprintf('corregida, añadido el paso «%s» → «%s»', $this->from->lowerLabel(), $this->to->lowerLabel());
     }
 
     public function apply(Incident $incident, Finding $finding): void
@@ -44,7 +49,7 @@ final readonly class ReconcileStatus implements Fix
             'new_value' => $this->to->value,
             'user_name' => Actor::system()->name,
             'metadata' => [
-                'check' => $finding->check,
+                'check' => $finding->checkKey,
                 'inferred' => true,
                 'evidence_log_id' => $finding->evidenceLogId,
                 'detail' => 'Fecha y autor reales desconocidos: se registra la fecha de la corrección.',

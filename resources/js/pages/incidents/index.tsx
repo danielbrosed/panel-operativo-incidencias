@@ -4,19 +4,24 @@ import { CreateIncidentForm } from '@/components/create-incident-form';
 import { FilterBar } from '@/components/filter-bar';
 import { IncidentList } from '@/components/incident-list';
 import { Pagination } from '@/components/pagination';
+import { StatusActions } from '@/components/status-actions';
 import { StatusCounters } from '@/components/status-counters';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { IconPlus } from '@/components/ui/icons';
+import { PageTitle } from '@/components/ui/page-title';
 import { useIncidentFilters } from '@/hooks/use-incident-filters';
+import { useStatusChange } from '@/hooks/use-status-change';
+import { LOADING_DELAY_CLASS } from '@/lib/app-config';
 import { cx } from '@/lib/cx';
 import { rememberListUrl } from '@/lib/list-url';
 import type { IncidentIndexProps } from '@/types/incident';
 
 const CREATE_FORM_ID = 'create-incident';
 
-export default function IncidentsIndex({ incidents, counts, filters, options, urls }: IncidentIndexProps) {
+export default function IncidentIndex({ incidents, counts, filters, options, urls }: IncidentIndexProps) {
     const filtering = useIncidentFilters(filters, urls.index);
+    const statusChange = useStatusChange(incidents.data);
     const { url } = usePage();
     // Open from the start only when there is nothing yet: the first thing to do is open an incident.
     const [creating, setCreating] = useState(() => incidents.meta.total === 0 && !filtering.isFiltered);
@@ -29,7 +34,7 @@ export default function IncidentsIndex({ incidents, counts, filters, options, ur
             <Head title="Incidencias" />
 
             <div className="flex flex-wrap items-center justify-between gap-4">
-                <h1 className="text-2xl font-semibold text-navy sm:text-3xl">Incidencias</h1>
+                <PageTitle>Incidencias</PageTitle>
                 <Button
                     variant={creating ? 'secondary' : 'primary'}
                     aria-expanded={creating}
@@ -50,20 +55,40 @@ export default function IncidentsIndex({ incidents, counts, filters, options, ur
                 onChange={filtering.setStatus}
             />
 
-            <FilterBar state={filtering} priorities={options.priorities} />
+            <FilterBar
+                search={filtering.search}
+                priority={filtering.filters.priority}
+                priorities={options.priorities}
+                filtered={filtering.isFiltered}
+                onSearchChange={filtering.changeSearch}
+                onSearchSubmit={filtering.submitSearch}
+                onSearchClear={filtering.clearSearch}
+                onPriorityChange={filtering.setPriority}
+                onClearAll={filtering.clearAll}
+            />
 
             {/* Takes focus when the focused row or button disappears (see useFocusFallback). Dimmed only when the
-                response takes a moment, like the progress bar, so a fast one does not flicker. */}
+                response takes a moment, like the progress bar. */}
             <Card
                 aria-label="Listado de incidencias"
                 aria-busy={filtering.loading}
                 data-focus-fallback
                 tabIndex={-1}
                 flush
-                className={cx('transition-opacity', filtering.loading && 'opacity-60 delay-150')}
+                className={cx('transition-opacity', filtering.loading && `opacity-60 ${LOADING_DELAY_CLASS}`)}
             >
                 {incidents.data.length > 0 ? (
-                    <IncidentList incidents={incidents.data} />
+                    <IncidentList
+                        incidents={incidents.data}
+                        actions={(incident) => (
+                            <StatusActions
+                                incident={incident}
+                                busy={statusChange.isProcessing(incident.id)}
+                                error={statusChange.errorFor(incident.id)}
+                                onChoose={statusChange.choose}
+                            />
+                        )}
+                    />
                 ) : (
                     <EmptyList
                         total={incidents.meta.total}
@@ -75,6 +100,8 @@ export default function IncidentsIndex({ incidents, counts, filters, options, ur
             </Card>
 
             <Pagination meta={incidents.meta} />
+
+            {statusChange.dialog}
         </>
     );
 }

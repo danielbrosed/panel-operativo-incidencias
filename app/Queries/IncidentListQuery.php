@@ -13,7 +13,11 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class IncidentListQuery
 {
-    /** @return LengthAwarePaginator<int, Incident> */
+    /**
+     * The page links carry the filters as they were understood, not whatever the query string brought.
+     *
+     * @return LengthAwarePaginator<int, Incident>
+     */
     public function paginate(IncidentFilters $filters, int $perPage): LengthAwarePaginator
     {
         return $this->filtered($filters)
@@ -21,7 +25,7 @@ final class IncidentListQuery
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($perPage)
-            ->withQueryString();
+            ->appends(array_filter($filters->toArray(), fn (?string $value): bool => $value !== null));
     }
 
     /**

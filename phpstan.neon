@@ -6,10 +6,7 @@ parameters:
     paths:
         - app
         - bootstrap/app.php
-        # Only the config files written for this project; the rest are the framework skeleton, untouched.
-        - config/incidents.php
-        - config/inertia.php
-        - config/security.php
+        - config
         - database
         - routes
         - tests

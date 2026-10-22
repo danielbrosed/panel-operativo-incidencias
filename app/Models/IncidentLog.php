@@ -13,12 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use InvalidArgumentException;
 
 /**
- * Append-only audit trail of an incident.
- *
- * Through Eloquent a row can never be updated or deleted; the single exception is voiding it once, with a
- * reason, which is how a duplicated entry is neutralised without losing the evidence. Query-builder writes
- * bypass these guards, which is why production should also restrict the database user (see README) and why
- * `incidents:diagnose` exists.
+ * Append-only audit trail: through Eloquent a row is never updated or deleted, only voided once with a reason.
+ * Query-builder writes bypass these guards: production should also restrict the database user (see README).
  *
  * @property int $id
  * @property int $incident_id
@@ -109,5 +105,15 @@ class IncidentLog extends Model
     public function scopeActive(Builder $query): void
     {
         $query->whereNull('voided_at');
+    }
+
+    /**
+     * The manual-review flags left by the diagnostic, active or voided (reviewed).
+     *
+     * @param  Builder<IncidentLog>  $query
+     */
+    public function scopeReviewFlags(Builder $query): void
+    {
+        $query->where('action', IncidentLogAction::FlaggedForReview);
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Diagnostics;
 
+use App\Diagnostics\Fixes\Fix;
+
 enum FixOutcome
 {
     case Applied;
@@ -17,10 +19,10 @@ enum FixOutcome
     /** A person reviewed the same finding (incidents:review) between the plan and the fix. */
     case AlreadyReviewed;
 
-    public function message(): string
+    public function message(Fix $fix): string
     {
         return match ($this) {
-            self::Applied => 'corregida',
+            self::Applied => $fix->appliedMessage(),
             self::NoLongerTrue => 'omitida, el hallazgo ya no se cumple (la incidencia cambió desde el diagnóstico)',
             self::AlreadyFlagged => 'omitida, ya estaba marcada para revisión manual',
             self::AlreadyReviewed => 'omitida, ya estaba revisada',

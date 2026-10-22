@@ -2,6 +2,13 @@
 // and the Inertia::flash('toast', …) calls in the controllers.
 import '@inertiajs/core';
 
+declare global {
+    interface ImportMetaEnv {
+        /** VITE_APP_NAME="${APP_NAME}" in .env. */
+        readonly VITE_APP_NAME?: string;
+    }
+}
+
 declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {

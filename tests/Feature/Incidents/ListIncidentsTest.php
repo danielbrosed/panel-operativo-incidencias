@@ -34,6 +34,7 @@ class ListIncidentsTest extends TestCase
             ->where('counts', ['open' => 1, 'in_review' => 0, 'blocked' => 1, 'resolved' => 0])
             ->has('options.statuses', 4)
             ->has('options.priorities', 3)
+            ->where('options.operators', config()->array('incidents.operators'))
             ->where('filters', ['status' => null, 'priority' => null, 'q' => null]));
     }
 
@@ -48,12 +49,14 @@ class ListIncidentsTest extends TestCase
                     'action_label' => 'Bloquear',
                     'requires_reason' => true,
                     'requires_confirmation' => true,
+                    'destructive' => true,
                 ],
                 [
                     'to' => ['value' => 'resolved', 'label' => 'Resuelta'],
                     'action_label' => 'Resolver',
                     'requires_reason' => false,
                     'requires_confirmation' => true,
+                    'destructive' => false,
                 ],
             ]));
     }
@@ -133,14 +136,22 @@ class ListIncidentsTest extends TestCase
                 ->missing('urls')));
     }
 
-    public function test_it_paginates_keeping_the_filters_in_the_links(): void
+    public function test_page_links_carry_the_filters_as_understood_and_spanish_labels(): void
     {
-        Incident::factory()->count(17)->status(IncidentStatus::Open)->create();
+        $perPage = config()->integer('incidents.per_page');
+        Incident::factory()->count($perPage + 2)->status(IncidentStatus::Open)->create();
 
-        $this->get('/incidents?status=open')->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('incidents.data', 15)
-            ->where('incidents.meta.total', 17)
-            ->where('incidents.links.next', fn (string $url) => str_contains($url, 'status=open') && str_contains($url, 'page=2')));
+        // Anything else in the query string, and the search as typed, stay out of the links.
+        $this->get('/incidents?status=open&utm_source=newsletter&q='.urlencode('  '))->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('incidents.data', $perPage)
+            ->where('incidents.meta.total', $perPage + 2)
+            ->where('incidents.links.next', fn (string $url) => str_contains($url, 'status=open')
+                && str_contains($url, 'page=2')
+                && ! str_contains($url, 'utm_source')
+                && ! str_contains($url, 'q='))
+            // Plain text: the frontend renders each label as it comes.
+            ->where('incidents.meta.links.0.label', 'Anterior')
+            ->where('incidents.meta.links.3.label', 'Siguiente'));
     }
 
     public function test_overdue_incidents_are_flagged(): void

@@ -16,7 +16,8 @@ export function lastListUrl(fallback: string): string {
         const listPath = new URL(fallback, location.origin).pathname;
         const candidate = stored !== null ? new URL(stored, location.origin) : null;
         if (candidate !== null && candidate.origin === location.origin && candidate.pathname === listPath) {
-            return stored as string;
+            // The parsed URL, not the stored text: a relative value would resolve against the detail page's path.
+            return candidate.pathname + candidate.search;
         }
     } catch {
         // Storage blocked or a malformed value.

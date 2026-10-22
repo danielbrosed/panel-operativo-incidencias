@@ -12,8 +12,6 @@ final readonly class Actor
     /** The diagnostic command, when it writes a fix. */
     public static function system(): self
     {
-        $name = config('incidents.diagnostics.actor');
-
-        return new self(is_string($name) && $name !== '' ? $name : 'sistema');
+        return new self(config()->string('incidents.diagnostics.actor'));
     }
 }

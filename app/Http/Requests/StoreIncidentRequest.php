@@ -29,12 +29,12 @@ class StoreIncidentRequest extends FormRequest
     public function toData(): NewIncidentData
     {
         return new NewIncidentData(
-            title: $this->string('title')->trim()->toString(),
-            description: $this->string('description')->trim()->toString(),
+            title: $this->string('title')->toString(),
+            description: $this->string('description')->toString(),
             priority: IncidentPriority::from($this->string('priority')->toString()),
-            requesterName: $this->string('requester_name')->trim()->toString(),
+            requesterName: $this->string('requester_name')->toString(),
             assignedTo: $this->filled('assigned_to') ? $this->string('assigned_to')->toString() : null,
-            store: $this->filled('store') ? $this->string('store')->trim()->toString() : null,
+            store: $this->filled('store') ? $this->string('store')->toString() : null,
         );
     }
 }

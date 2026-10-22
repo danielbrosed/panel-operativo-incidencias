@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { IncidentFlags } from '@/components/incident-flags';
-import { formatDateTime, formatRelative } from '@/lib/format';
+import { buttonClasses } from '@/components/ui/button';
 import type { Incident } from '@/types/incident';
 
 // Pieces shared by the table and the card rendering of the list.
@@ -25,25 +25,14 @@ export function IncidentHeading({ incident }: { incident: Incident }) {
     );
 }
 
-export function OpenedAt({ iso }: { iso: string }) {
-    return (
-        <time dateTime={iso} className="flex flex-col">
-            <span className="whitespace-nowrap">{formatDateTime(iso)}</span>
-            <span className="text-xs text-muted">{formatRelative(iso)}</span>
-        </time>
-    );
-}
-
+/** Also on the detail page. */
 export function Assignee({ name }: { name: string | null }) {
     return name ?? <span className="text-muted italic">Sin asignar</span>;
 }
 
 export function HistoryLink({ incident }: { incident: Incident }) {
     return (
-        <Link
-            href={`${incident.links.self}#historial`}
-            className="text-sm font-semibold whitespace-nowrap text-brand-600 underline-offset-4 hover:underline"
-        >
+        <Link href={`${incident.links.self}#historial`} className={buttonClasses('link', 'md', 'text-sm')}>
             Historial<span className="sr-only"> de la incidencia #{incident.id}</span>
         </Link>
     );

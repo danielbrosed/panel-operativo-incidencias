@@ -31,6 +31,9 @@ final class StatusDiffersFromLastLog extends LatestTrailLogCheck
     {
         $resolved = self::literal(IncidentStatus::Resolved->value);
 
-        return "i.status <> {$resolved}\n    AND (t.new_value IS NULL OR t.new_value <> i.status)";
+        return <<<SQL
+            i.status <> {$resolved}
+                AND (t.new_value IS NULL OR t.new_value <> i.status)
+            SQL;
     }
 }

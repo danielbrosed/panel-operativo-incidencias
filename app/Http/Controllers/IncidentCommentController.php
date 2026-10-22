@@ -8,8 +8,8 @@ use App\Actions\Incidents\AddIncidentComment;
 use App\Http\Requests\StoreIncidentCommentRequest;
 use App\Models\Incident;
 use App\Support\CurrentActor;
+use App\Support\Toast;
 use Illuminate\Http\RedirectResponse;
-use Inertia\Inertia;
 
 class IncidentCommentController extends Controller
 {
@@ -21,7 +21,7 @@ class IncidentCommentController extends Controller
     ): RedirectResponse {
         $addComment->handle($incident, $request->body(), $actor->get());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Comentario añadido.']);
+        Toast::success('Comentario añadido.');
 
         return back();
     }
