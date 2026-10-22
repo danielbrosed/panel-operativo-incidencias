@@ -15,7 +15,8 @@ return new class extends Migration
             $table->foreignId('incident_id')->constrained()->restrictOnDelete();
             $table->string('author_name', 120);
             $table->text('body');
-            $table->timestamps();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
 
             $table->index(['incident_id', 'created_at']);
         });

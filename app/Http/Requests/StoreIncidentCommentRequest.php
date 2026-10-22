@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Rules\ValidUtf8;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreIncidentCommentRequest extends FormRequest
@@ -12,7 +13,7 @@ class StoreIncidentCommentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'min:2', 'max:2000'],
+            'body' => ['required', 'string', new ValidUtf8, 'min:2', 'max:2000'],
         ];
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\IncidentStatus;
+use App\Rules\ValidUtf8;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,6 +25,7 @@ class ChangeIncidentStatusRequest extends FormRequest
             'reason' => [
                 'nullable',
                 'string',
+                new ValidUtf8,
                 'max:500',
                 Rule::requiredIf(fn (): bool => $this->requiresReason()),
             ],
@@ -53,10 +55,21 @@ class ChangeIncidentStatusRequest extends FormRequest
         return $this->filled('reason') ? $this->string('reason')->trim()->toString() : null;
     }
 
+    /**
+     * Runs while the rules are being built, before they have validated anything: crafted input (arrays, objects)
+     * must not reach IncidentStatus::tryFrom(), which only accepts strings.
+     */
     private function requiresReason(): bool
     {
-        $from = $this->enum('expected_status', IncidentStatus::class);
-        $to = $this->enum('status', IncidentStatus::class);
+        $from = $this->input('expected_status');
+        $to = $this->input('status');
+
+        if (! is_string($from) || ! is_string($to)) {
+            return false;
+        }
+
+        $from = IncidentStatus::tryFrom($from);
+        $to = IncidentStatus::tryFrom($to);
 
         return $from !== null && $to !== null && $from->requiresReason($to);
     }

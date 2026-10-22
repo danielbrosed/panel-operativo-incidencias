@@ -75,6 +75,14 @@ class CreateIncidentTest extends TestCase
         $this->assertDatabaseCount('incident_logs', 0);
     }
 
+    public function test_text_with_invalid_utf8_is_a_validation_error_not_a_server_error(): void
+    {
+        $this->post('/incidents', $this->validPayload(['title' => "Persiana \xFF\xFE rota"]))
+            ->assertSessionHasErrors(['title' => 'El campo título contiene caracteres no válidos.']);
+
+        $this->assertDatabaseCount('incidents', 0);
+    }
+
     public function test_optional_fields_can_be_left_empty(): void
     {
         $this->post('/incidents', $this->validPayload(['assigned_to' => '', 'store' => '']))->assertSessionHasNoErrors();

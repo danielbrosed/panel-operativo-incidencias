@@ -75,4 +75,32 @@ class IntegrityTest extends TestCase
         $this->expectException(QueryException::class);
         DB::table('incidents')->where('id', $incident->id)->delete();
     }
+
+    public function test_the_database_rejects_an_unknown_log_action(): void
+    {
+        $incident = $this->incident();
+
+        $this->expectException(QueryException::class);
+        DB::table('incident_logs')->insert([
+            'incident_id' => $incident->id,
+            'action' => 'legacy_import',
+            'user_name' => 'importacion-legacy',
+        ]);
+    }
+
+    public function test_rows_written_outside_the_app_without_dates_still_render(): void
+    {
+        $id = DB::table('incidents')->insertGetId([
+            'title' => 'Alta manual sin fechas',
+            'description' => 'Insertada por SQL sin created_at ni updated_at.',
+            'status' => 'open',
+            'priority' => 'low',
+            'requester_name' => 'Soporte',
+            'due_at' => now()->addDay(),
+        ]);
+        DB::table('incident_comments')->insert(['incident_id' => $id, 'author_name' => 'Soporte', 'body' => 'Sin fecha.']);
+
+        $this->get('/incidents')->assertOk();
+        $this->get("/incidents/{$id}")->assertOk();
+    }
 }

@@ -24,7 +24,9 @@ return new class extends Migration
             // Response time committed when the incident was opened (priority SLA). Stored, not recomputed,
             // so a later change of SLA policy does not move existing commitments.
             $table->timestamp('due_at');
-            $table->timestamps();
+            // NOT NULL with database defaults (unlike timestamps()): rows written outside the app still get dates.
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
 
             // The list filters by status or priority and always sorts by date.
             $table->index(['status', 'created_at']);

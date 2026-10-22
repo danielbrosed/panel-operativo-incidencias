@@ -48,6 +48,8 @@ class IncidentController extends Controller
                     'impact' => $priority->impact(),
                     'sla_hours' => $priority->slaHours(),
                 ], IncidentPriority::cases()),
+                // Who can be assigned. Today it is the same list as the actors (shared `actor` prop); with real
+                // users "assignable technicians" and "people operating the panel" would be different queries.
                 'operators' => $actor->options(),
             ],
             'urls' => [

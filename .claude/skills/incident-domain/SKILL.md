@@ -30,6 +30,7 @@ Si cambias una pieza, recorre la lista entera en el mismo commit.
 ## Añadir una acción de log
 
 - Caso nuevo en `app/Enums/IncidentLogAction.php`.
+- **Migración nueva** que sustituya el `CHECK` de `incident_logs.action` (`incident_logs_action_check`).
 - Si representa un cambio de estado, añádela a `IncidentLogAction::statusTrail()`: el diagnóstico solo mira esas.
 - Nunca reutilices `status_changed` para algo que no sea una transición hecha por una persona desde el panel.
 

@@ -15,6 +15,7 @@ return [
     ],
     'required' => 'El campo :attribute es obligatorio.',
     'string' => 'El campo :attribute debe ser texto.',
+    'utf8' => 'El campo :attribute contiene caracteres no válidos.',
 
     'attributes' => [
         'assigned_to' => 'responsable',

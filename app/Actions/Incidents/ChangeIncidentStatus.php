@@ -40,6 +40,11 @@ final class ChangeIncidentStatus
             $locked = Incident::query()->whereKey($incident->getKey())->lockForUpdate()->firstOrFail();
             $from = $locked->status;
 
+            // Already there (a double submit or a retry): say so, rather than blaming "someone else".
+            if ($from === $to) {
+                throw InvalidStatusTransition::between($from, $to);
+            }
+
             if ($from !== $expected) {
                 throw StaleIncidentStatus::for($from);
             }

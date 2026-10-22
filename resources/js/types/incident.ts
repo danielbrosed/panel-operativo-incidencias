@@ -3,11 +3,13 @@
  *  - Incident        ← app/Http/Resources/IncidentResource.php
  *  - IncidentDetail  ← app/Http/Resources/IncidentDetailResource.php
  *  - TimelineEntry   ← app/Http/Resources/TimelineEntryResource.php
- *  - value unions    ← app/Enums/IncidentStatus.php and IncidentPriority.php
+ *  - value unions    ← app/Enums/IncidentStatus.php, IncidentPriority.php and IncidentLogAction.php
  */
 
 export type IncidentStatusValue = 'open' | 'in_review' | 'blocked' | 'resolved';
 export type IncidentPriorityValue = 'low' | 'medium' | 'high';
+export type IncidentLogActionValue =
+    'created' | 'status_changed' | 'reopened' | 'status_reconciled' | 'flagged_for_review';
 
 export interface Option<Value extends string = string> {
     value: Value;
@@ -52,7 +54,7 @@ export interface IncidentDetail extends Omit<Incident, 'links'> {
 export interface TimelineLogEntry {
     type: 'log';
     id: number;
-    action: Option;
+    action: Option<IncidentLogActionValue>;
     old_value: string | null;
     new_value: string | null;
     old_label: string | null;
@@ -62,7 +64,7 @@ export interface TimelineLogEntry {
     detail: string | null;
     inferred: boolean;
     created_at: string;
-    voided: { at: string | null; reason: string | null } | null;
+    voided: { at: string; reason: string | null } | null;
 }
 
 export interface TimelineCommentEntry {
@@ -91,7 +93,7 @@ export interface Paginated<Item> {
         current_page: number;
         from: number | null;
         last_page: number;
-        links: { url: string | null; label: string; active: boolean }[];
+        links: { url: string | null; label: string; page: number | null; active: boolean }[];
         path: string;
         per_page: number;
         to: number | null;

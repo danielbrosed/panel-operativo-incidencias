@@ -112,23 +112,23 @@ class ChangeIncidentStatusTest extends TestCase
 
     public function test_acting_on_a_stale_status_is_rejected_instead_of_overwriting_someone_else(): void
     {
-        $incident = $this->openIncident();
-        // Someone else moves it while this person still sees it "open".
-        $this->moveTo($incident, IncidentStatus::InReview);
+        $incident = $this->moveTo($this->openIncident(), IncidentStatus::InReview);
+        // Someone else blocks it while this person, still seeing it "in review", goes to resolve it.
+        $this->moveTo($incident, IncidentStatus::Blocked);
 
-        $this->patch("/incidents/{$incident->id}/status", ['status' => 'in_review', 'expected_status' => 'open'])
+        $this->patch("/incidents/{$incident->id}/status", ['status' => 'resolved', 'expected_status' => 'in_review'])
             ->assertSessionHasErrors('status');
 
-        $this->assertStringContainsString('mientras la mirabas', (string) session('errors')?->first('status'));
-        $this->assertSame(IncidentStatus::InReview, $incident->fresh()?->status);
-        $this->assertSame(2, $incident->logs()->count(), 'no duplicated open → in_review entry');
+        $this->assertStringContainsString('«bloqueada» mientras la mirabas', (string) session('errors')?->first('status'));
+        $this->assertSame(IncidentStatus::Blocked, $incident->fresh()?->status);
+        $this->assertSame(3, $incident->logs()->count(), 'nothing written on top of the other person\'s change');
     }
 
     public function test_json_clients_get_409_for_a_stale_status(): void
     {
-        $incident = $this->moveTo($this->openIncident(), IncidentStatus::InReview);
+        $incident = $this->moveTo($this->openIncident(), IncidentStatus::InReview, IncidentStatus::Blocked);
 
-        $this->patchJson("/incidents/{$incident->id}/status", ['status' => 'in_review', 'expected_status' => 'open'])
+        $this->patchJson("/incidents/{$incident->id}/status", ['status' => 'resolved', 'expected_status' => 'in_review'])
             ->assertStatus(409)
             ->assertJsonValidationErrors('status');
     }
@@ -168,5 +168,42 @@ class ChangeIncidentStatusTest extends TestCase
 
         $this->patch("/incidents/{$incident->id}/status", ['status' => 'archived', 'expected_status' => 'open'])
             ->assertSessionHasErrors(['status' => 'El valor de estado no es válido.']);
+    }
+
+    public function test_crafted_array_input_is_a_validation_error_not_a_server_error(): void
+    {
+        $incident = $this->openIncident();
+
+        $this->patch("/incidents/{$incident->id}/status", ['status' => ['x'], 'expected_status' => ['open']])
+            ->assertSessionHasErrors(['status', 'expected_status']);
+
+        $this->patchJson("/incidents/{$incident->id}/status", ['status' => ['a' => 1], 'expected_status' => 'open'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+    }
+
+    public function test_a_double_submit_says_the_incident_is_already_there(): void
+    {
+        $incident = $this->openIncident();
+        $payload = ['status' => 'in_review', 'expected_status' => 'open'];
+
+        $this->patch("/incidents/{$incident->id}/status", $payload)->assertSessionHasNoErrors();
+        $this->patch("/incidents/{$incident->id}/status", $payload)
+            ->assertSessionHasErrors(['status' => 'La incidencia ya está «en revisión».']);
+
+        $this->assertSame(2, $incident->logs()->count());
+    }
+
+    public function test_a_reason_with_invalid_utf8_is_rejected_cleanly(): void
+    {
+        $incident = $this->moveTo($this->openIncident(), IncidentStatus::InReview);
+
+        $this->patch("/incidents/{$incident->id}/status", [
+            'status' => 'blocked',
+            'expected_status' => 'in_review',
+            'reason' => "Pieza \xFF\xFE pendiente",
+        ])->assertSessionHasErrors(['reason' => 'El campo motivo contiene caracteres no válidos.']);
+
+        $this->assertSame(IncidentStatus::InReview, $incident->fresh()?->status);
     }
 }
