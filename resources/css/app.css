@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/montserrat';
+
+/*
+ * Design tokens taken from optimaretail.eu (Elementor globals): blue #0086FF, violet #3417FF, navy #0C0233,
+ * light background #F6F6F6, pill buttons, 30px cards and fields rounded only on the right.
+ * Gotham is a licensed typeface, so Montserrat (its usual free substitute) is bundled instead.
+ * Every colour used for text on white or white on colour was checked for WCAG AA contrast;
+ * where the brand value fails (white on #0086FF is 3.6:1) a darker step of the same hue is used.
+ */
+@theme {
+    --font-sans: 'Montserrat Variable', ui-sans-serif, system-ui, sans-serif;
+
+    --color-brand: #0086ff;
+    --color-brand-600: #006fd6;
+    --color-brand-strong: #3417ff;
+    --color-brand-50: #eef6ff;
+    --color-navy: #0c0233;
+
+    --color-ink: #1d1b30;
+    --color-muted: #5f5d70;
+    --color-line: #e4e4ea;
+    --color-surface: #f6f6f6;
+
+    --color-status-open: #0062bd;
+    --color-status-open-bg: #e6f1ff;
+    --color-status-in-review: #3417ff;
+    --color-status-in-review-bg: #eeebff;
+    --color-status-blocked: #a14a00;
+    --color-status-blocked-bg: #fff3df;
+    --color-status-resolved: #04724f;
+    --color-status-resolved-bg: #e5f6ee;
+
+    --color-priority-low: #16a34a;
+    --color-priority-medium: #ca8a04;
+    --color-priority-high: #dc2626;
+
+    --color-danger: #b91c1c;
+    --color-danger-bg: #fdecec;
+
+    --radius-card: 30px;
+    --radius-field: 20px;
+}
+
+@utility bg-brand-gradient {
+    background-image: linear-gradient(90deg, var(--color-brand-strong) 0%, var(--color-brand) 100%);
+}
+
+@layer base {
+    :focus-visible {
+        outline: 3px solid var(--color-brand);
+        outline-offset: 2px;
+    }
+}
