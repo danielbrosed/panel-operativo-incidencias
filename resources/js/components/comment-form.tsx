@@ -1,11 +1,12 @@
 import { useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { useRef, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/form-controls';
 
 export function CommentForm({ url }: { url: string }) {
     const form = useForm({ body: '' });
+    const bodyRef = useRef<HTMLTextAreaElement>(null);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -13,7 +14,11 @@ export function CommentForm({ url }: { url: string }) {
         form.post(url, {
             errorBag: 'comment',
             preserveScroll: true,
+            // Only a saved comment empties the box: with any error (an expired session included) the text stays.
             onSuccess: () => form.reset(),
+            onError: (errors) => {
+                if (errors.body) bodyRef.current?.focus();
+            },
         });
     };
 
@@ -23,6 +28,7 @@ export function CommentForm({ url }: { url: string }) {
                 {(control) => (
                     <Textarea
                         {...control}
+                        ref={bodyRef}
                         name="body"
                         required
                         maxLength={2000}

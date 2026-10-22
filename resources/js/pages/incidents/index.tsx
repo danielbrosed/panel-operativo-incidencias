@@ -1,23 +1,28 @@
-import { Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { CreateIncidentForm } from '@/components/create-incident-form';
 import { FilterBar } from '@/components/filter-bar';
 import { IncidentList } from '@/components/incident-list';
 import { Pagination } from '@/components/pagination';
 import { StatusCounters } from '@/components/status-counters';
-import { Button } from '@/components/ui/button';
+import { Button, buttonClasses } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { IconPlus } from '@/components/ui/icons';
 import { useIncidentFilters } from '@/hooks/use-incident-filters';
 import { cx } from '@/lib/cx';
+import { rememberListUrl } from '@/lib/list-url';
 import type { IncidentIndexProps } from '@/types/incident';
 
 const CREATE_FORM_ID = 'create-incident';
 
 export default function IncidentsIndex({ incidents, counts, filters, options, urls }: IncidentIndexProps) {
     const filtering = useIncidentFilters(filters, urls.index);
+    const { url } = usePage();
     // Open from the start only when there is nothing yet: the first thing to do is open an incident.
     const [creating, setCreating] = useState(() => incidents.meta.total === 0 && !filtering.isFiltered);
+
+    // "Volver al listado" on the detail page comes back to these filters and this page.
+    useEffect(() => rememberListUrl(url), [url]);
 
     return (
         <>
@@ -47,16 +52,25 @@ export default function IncidentsIndex({ incidents, counts, filters, options, ur
 
             <FilterBar state={filtering} priorities={options.priorities} />
 
+            {/* Takes focus when the focused row or button disappears (see useFocusFallback). Dimmed only when the
+                response takes a moment, like the progress bar, so a fast one does not flicker. */}
             <Card
                 aria-label="Listado de incidencias"
                 aria-busy={filtering.loading}
+                data-focus-fallback
+                tabIndex={-1}
                 flush
-                className={cx('transition-opacity', filtering.loading && 'opacity-60')}
+                className={cx('transition-opacity', filtering.loading && 'opacity-60 delay-150')}
             >
                 {incidents.data.length > 0 ? (
                     <IncidentList incidents={incidents.data} />
                 ) : (
-                    <EmptyState filtered={filtering.isFiltered} onClear={filtering.clearAll} />
+                    <EmptyList
+                        total={incidents.meta.total}
+                        firstPage={incidents.links.first ?? urls.index}
+                        filtered={filtering.isFiltered}
+                        onClear={filtering.clearAll}
+                    />
                 )}
             </Card>
 
@@ -65,19 +79,54 @@ export default function IncidentsIndex({ incidents, counts, filters, options, ur
     );
 }
 
-function EmptyState({ filtered, onClear }: { filtered: boolean; onClear: () => void }) {
-    return (
-        <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-            <p className="font-semibold text-navy">
-                {filtered ? 'Ninguna incidencia coincide con estos filtros.' : 'Todavía no hay incidencias.'}
-            </p>
-            {filtered ? (
+interface EmptyListProps {
+    total: number;
+    /** Page 1 with the same filters. */
+    firstPage: string;
+    filtered: boolean;
+    onClear: () => void;
+}
+
+function EmptyList({ total, firstPage, filtered, onClear }: EmptyListProps) {
+    // A page past the end (an old link, a list that shrank): there are incidents, just not on this page.
+    if (total > 0) {
+        return (
+            <EmptyMessage title="Esta página no tiene incidencias.">
+                <Link
+                    href={firstPage}
+                    only={['incidents']}
+                    preserveState
+                    preserveScroll
+                    className={buttonClasses('link')}
+                >
+                    Ir a la primera página
+                </Link>
+            </EmptyMessage>
+        );
+    }
+
+    if (filtered) {
+        return (
+            <EmptyMessage title="Ninguna incidencia coincide con estos filtros.">
                 <Button variant="link" onClick={onClear}>
                     Quitar filtros
                 </Button>
-            ) : (
-                <p className="text-sm text-muted">Abre la primera con el formulario de arriba.</p>
-            )}
+            </EmptyMessage>
+        );
+    }
+
+    return (
+        <EmptyMessage title="Todavía no hay incidencias.">
+            <p className="text-sm text-muted">Abre la primera con el formulario de arriba.</p>
+        </EmptyMessage>
+    );
+}
+
+function EmptyMessage({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+            <p className="font-semibold text-navy">{title}</p>
+            {children}
         </div>
     );
 }

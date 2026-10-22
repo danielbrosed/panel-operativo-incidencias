@@ -26,7 +26,7 @@ export function PriorityPicker({ name, priorities, value, error, onChange }: Pri
                             'flex cursor-pointer items-center gap-3 rounded-card border px-4 py-2.5 transition-colors',
                             value === priority.value
                                 ? 'border-brand-600 bg-brand-50'
-                                : cx('bg-white hover:border-muted', error ? 'border-danger' : 'border-line'),
+                                : cx('bg-white hover:border-muted', error ? 'border-danger' : 'border-control'),
                         )}
                     >
                         <input

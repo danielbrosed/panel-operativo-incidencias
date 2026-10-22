@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { cx } from '@/lib/cx';
 import type { IncidentPriorityValue, Option } from '@/types/incident';
 
-export const priorityDots: Record<IncidentPriorityValue, string> = {
+const priorityDots: Record<IncidentPriorityValue, string> = {
     low: 'bg-priority-low',
     medium: 'bg-priority-medium',
     high: 'bg-priority-high',

@@ -14,61 +14,64 @@ import { cx } from '@/lib/cx';
 import type { Incident } from '@/types/incident';
 
 const cell = 'px-3 py-4';
-const COLUMNS = ['Incidencia', 'Prioridad', 'Estado', 'Abierta', 'Solicitante', 'Responsable', 'Acciones'];
+const COLUMNS = ['Incidencia', 'Prioridad', 'Estado', 'Fecha de apertura', 'Solicitante', 'Responsable', 'Acciones'];
 
 /**
- * A table from lg up (seven columns need ~1000px) and stacked cards below. Two renderings of the same rows,
+ * A table from xl up (seven columns need ~1150px) and stacked cards below. Two renderings of the same rows,
  * switched by CSS only; the hidden one is display:none, so it is out of the accessibility tree and the tab order.
+ * The table scrolls sideways rather than being clipped by the card if a long word ever makes it wider.
  */
 export function IncidentList({ incidents }: { incidents: Incident[] }) {
     return (
         <>
-            <table className="hidden w-full text-left text-sm lg:table">
-                <caption className="sr-only">Incidencias</caption>
-                <thead className="border-b border-line">
-                    <tr>
-                        {COLUMNS.map((column) => (
-                            <th
-                                key={column}
-                                scope="col"
-                                className="px-3 py-3 text-xs font-semibold tracking-wide text-muted uppercase first:pl-6 last:pr-6"
-                            >
-                                {column}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                    {incidents.map((incident) => (
-                        <tr key={incident.id} className={cx('align-top', blockedTint(incident))}>
-                            <td className={cx('max-w-sm min-w-60 py-4 pr-3 pl-6', overdueEdge(incident))}>
-                                <IncidentHeading incident={incident} />
-                            </td>
-                            <td className={cell}>
-                                <PriorityBadge priority={incident.priority} />
-                            </td>
-                            <td className={cell}>
-                                <StatusBadge status={incident.status} />
-                            </td>
-                            <td className={cell}>
-                                <OpenedAt iso={incident.created_at} />
-                            </td>
-                            <td className={cell}>{incident.requester_name}</td>
-                            <td className={cell}>
-                                <Assignee name={incident.assigned_to} />
-                            </td>
-                            <td className="py-4 pr-6 pl-3">
-                                <div className="flex min-w-48 flex-col items-start gap-2">
-                                    <StatusActions incident={incident} />
-                                    <HistoryLink incident={incident} />
-                                </div>
-                            </td>
+            <div className="hidden overflow-x-auto xl:block">
+                <table className="w-full text-left text-sm">
+                    <caption className="sr-only">Incidencias</caption>
+                    <thead className="border-b border-line">
+                        <tr>
+                            {COLUMNS.map((column) => (
+                                <th
+                                    key={column}
+                                    scope="col"
+                                    className="px-3 py-3 text-xs font-semibold tracking-wide text-muted uppercase first:pl-6 last:pr-6"
+                                >
+                                    {column}
+                                </th>
+                            ))}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                        {incidents.map((incident) => (
+                            <tr key={incident.id} className={cx('align-top', blockedTint(incident))}>
+                                <td className={cx('max-w-sm min-w-60 py-4 pr-3 pl-6', overdueEdge(incident))}>
+                                    <IncidentHeading incident={incident} />
+                                </td>
+                                <td className={cell}>
+                                    <PriorityBadge priority={incident.priority} />
+                                </td>
+                                <td className={cell}>
+                                    <StatusBadge status={incident.status} />
+                                </td>
+                                <td className={cell}>
+                                    <OpenedAt iso={incident.created_at} />
+                                </td>
+                                <td className={cell}>{incident.requester_name}</td>
+                                <td className={cell}>
+                                    <Assignee name={incident.assigned_to} />
+                                </td>
+                                <td className="py-4 pr-6 pl-3">
+                                    <div className="flex min-w-48 flex-col items-start gap-2">
+                                        <StatusActions incident={incident} />
+                                        <HistoryLink incident={incident} />
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
 
-            <ul className="divide-y divide-line lg:hidden">
+            <ul className="divide-y divide-line xl:hidden">
                 {incidents.map((incident) => (
                     <li
                         key={incident.id}
@@ -82,7 +85,7 @@ export function IncidentList({ incidents }: { incidents: Incident[] }) {
                             <CardDetail label="Prioridad">
                                 <PriorityBadge priority={incident.priority} />
                             </CardDetail>
-                            <CardDetail label="Abierta">
+                            <CardDetail label="Fecha de apertura">
                                 <OpenedAt iso={incident.created_at} />
                             </CardDetail>
                             <CardDetail label="Solicitante">{incident.requester_name}</CardDetail>

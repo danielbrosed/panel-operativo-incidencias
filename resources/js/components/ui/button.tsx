@@ -17,8 +17,8 @@ const sizes: Record<ButtonSize, string> = {
 };
 
 /**
- * Pill button classes, also used by links that look like buttons. Busy buttons use aria-disabled instead of
- * `disabled`: disabling the focused button would drop keyboard focus to the page.
+ * Pill button classes, also used by links that look like buttons (the list's "Ir a la primera página"). Busy
+ * buttons use aria-disabled instead of `disabled`: disabling the focused button would drop keyboard focus to the page.
  */
 export function buttonClasses(variant: ButtonVariant = 'primary', size: ButtonSize = 'md', className?: string): string {
     return cx(

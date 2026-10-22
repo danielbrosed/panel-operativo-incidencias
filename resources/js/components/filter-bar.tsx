@@ -31,7 +31,7 @@ export function FilterBar({ state, priorities }: FilterBarProps) {
                                 name="q"
                                 maxLength={100}
                                 autoComplete="off"
-                                placeholder="Título, tienda, solicitante o responsable"
+                                placeholder="Texto, tienda o persona"
                                 value={state.search}
                                 onChange={(event) => state.changeSearch(event.target.value)}
                                 className="pr-11 pl-11 [&::-webkit-search-cancel-button]:appearance-none"

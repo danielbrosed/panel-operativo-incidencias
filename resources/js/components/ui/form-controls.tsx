@@ -1,10 +1,10 @@
 import type { ComponentProps } from 'react';
 import { cx } from '@/lib/cx';
-import { IconChevronDown } from './icons';
+import { IconChevronDown } from '@/components/ui/icons';
 
 // Square on the left, rounded on the right: the field shape of optimaretail.eu.
 const control =
-    'w-full rounded-r-field border border-line bg-white px-4 text-sm text-ink placeholder:text-muted ' +
+    'w-full rounded-r-field border border-control bg-white px-4 text-sm text-ink placeholder:text-muted ' +
     'aria-invalid:border-danger disabled:opacity-60';
 
 export function Input({ className, ...props }: ComponentProps<'input'>) {

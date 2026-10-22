@@ -1,4 +1,5 @@
-import { useId, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { Button, type ButtonVariant } from '@/components/ui/button';
 
 interface ConfirmDialogProps {
@@ -13,6 +14,8 @@ interface ConfirmDialogProps {
     initialFocus?: RefObject<HTMLElement | null>;
     onConfirm: () => void;
     onDismiss: () => void;
+    /** Runs right after it closes, once the browser has tried to give focus back to the opener. */
+    onClosed?: () => void;
     children?: ReactNode;
 }
 
@@ -20,14 +23,23 @@ interface ConfirmDialogProps {
  * Native modal <dialog>: the browser traps focus, makes the page inert and gives focus back to the opener on
  * close. The `open` prop is the source of truth and the effect only syncs the element with it, so running it
  * twice (StrictMode) changes nothing. A layout effect, so it never paints open with stale content.
+ *
+ * It lives in <body>, not where it is declared: the list renders each row twice (table and cards, one of them
+ * display:none), and an open modal left inside a hidden subtree would vanish while keeping the page inert. It is
+ * mounted the first time it opens and kept afterwards, so it always closes through dialog.close().
  */
 export function ConfirmDialog(props: ConfirmDialogProps) {
-    const { open, processing = false, initialFocus, onDismiss } = props;
+    const { open, processing = false, initialFocus, onDismiss, onClosed } = props;
+    const [mounted, setMounted] = useState(open);
     const dialogRef = useRef<HTMLDialogElement>(null);
     const confirmRef = useRef<HTMLButtonElement>(null);
     const titleId = useId();
     const descriptionId = useId();
     const confirmBlocked = processing || props.confirmDisabled === true;
+
+    if (open && !mounted) {
+        setMounted(true);
+    }
 
     useLayoutEffect(() => {
         const dialog = dialogRef.current;
@@ -36,14 +48,19 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
             (initialFocus?.current ?? confirmRef.current)?.focus();
         } else if (!open && dialog?.open) {
             dialog.close();
+            onClosed?.();
         }
-    }, [open, initialFocus]);
+    }, [open, initialFocus, onClosed]);
+
+    if (!mounted) {
+        return null;
+    }
 
     const dismiss = () => {
         if (!processing) onDismiss();
     };
 
-    return (
+    return createPortal(
         <dialog
             ref={dialogRef}
             aria-labelledby={titleId}
@@ -87,6 +104,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
                     </Button>
                 </div>
             </form>
-        </dialog>
+        </dialog>,
+        document.body,
     );
 }

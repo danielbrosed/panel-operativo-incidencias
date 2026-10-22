@@ -6,8 +6,10 @@ import type { Incident } from '@/types/incident';
 // Pieces shared by the table and the card rendering of the list.
 
 // Highlights of the list (besides the "Vencida" tag): a danger bar on the left edge and a tint for blocked rows.
+// The bar is inset, so the card's rounded corners never clip it into a curve on the first or last row.
 export const overdueEdge = (incident: Incident) =>
-    incident.is_overdue && 'relative before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-danger';
+    incident.is_overdue &&
+    'relative before:absolute before:inset-y-4 before:left-1.5 before:w-1 before:rounded-full before:bg-danger';
 
 export const blockedTint = (incident: Incident) => incident.status.value === 'blocked' && 'bg-status-blocked-bg/60';
 

@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react';
 import { ActorSwitcher } from '@/components/actor-switcher';
 import { FlashToaster } from '@/components/flash-toaster';
+import { useFocusFallback } from '@/hooks/use-focus-fallback';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+    useFocusFallback();
+
     return (
         <div className="min-h-dvh">
             <div className="h-1.5 bg-brand-gradient" aria-hidden="true" />

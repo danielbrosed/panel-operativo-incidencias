@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CommentForm } from '@/components/comment-form';
 import { IncidentFlags } from '@/components/incident-flags';
 import { PriorityBadge } from '@/components/priority-badge';
@@ -10,15 +10,19 @@ import { Card, CardTitle } from '@/components/ui/card';
 import { IconArrowLeft } from '@/components/ui/icons';
 import { cx } from '@/lib/cx';
 import { formatDateTime, formatRelative } from '@/lib/format';
+import { lastListUrl } from '@/lib/list-url';
 import type { IncidentShowProps } from '@/types/incident';
 
 export default function IncidentShow({ incident, timeline, urls }: IncidentShowProps) {
+    // Back to the list as it was left: same filters and page.
+    const [listUrl] = useState(() => lastListUrl(urls.index));
+
     return (
         <>
             <Head title={`#${incident.id} ${incident.title}`} />
 
             <Link
-                href={urls.index}
+                href={listUrl}
                 className="inline-flex items-center gap-2 self-start text-sm font-semibold text-brand-600 hover:text-brand-strong"
             >
                 <IconArrowLeft />
@@ -37,7 +41,7 @@ export default function IncidentShow({ incident, timeline, urls }: IncidentShowP
 
             {/* Data and actions first in reading order (top on mobile); on desktop they sit in the right column. */}
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-                <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1">
+                <div className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1">
                     <Card aria-labelledby="status-title">
                         <CardTitle id="status-title" className="mb-4">
                             Cambiar estado
@@ -63,7 +67,7 @@ export default function IncidentShow({ incident, timeline, urls }: IncidentShowP
                             </Detail>
                         </dl>
                     </Card>
-                </aside>
+                </div>
 
                 <div className="flex min-w-0 flex-col gap-6 lg:row-start-1">
                     <Card aria-labelledby="description-title">

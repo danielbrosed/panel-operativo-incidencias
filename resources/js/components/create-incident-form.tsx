@@ -40,9 +40,9 @@ export function CreateIncidentForm({ id, hidden, url, options }: CreateIncidentF
         if (form.processing) return;
         form.post(url, {
             errorBag: 'createIncident',
-            // With errors the page keeps its state (what was typed, the form open). On success it remounts: the
-            // server redirects to the unfiltered list with the new incident first, so the form, the search box and
-            // the filters all start clean.
+            // With errors the page keeps its state (what was typed, the form open); an expired session or the rate
+            // limit also arrive as an error, on "request". On success it remounts: the server redirects to the
+            // unfiltered list with the new incident first, so the form, the search box and the filters start clean.
             preserveState: 'errors',
             preserveScroll: 'errors',
             onError: (errors) => focusFirstError(formRef.current, errors),
@@ -120,7 +120,7 @@ export function CreateIncidentForm({ id, hidden, url, options }: CreateIncidentF
                         />
                     )}
                 </Field>
-                <Field id="incident-assignee" label="Responsable" error={form.errors.assigned_to}>
+                <Field id="incident-assignee" label="Responsable" optional error={form.errors.assigned_to}>
                     {(control) => (
                         <Select
                             {...control}

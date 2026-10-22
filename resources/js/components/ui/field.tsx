@@ -21,7 +21,8 @@ interface FieldProps {
 export function Field({ id, label, hint, error, optional = false, className, children }: FieldProps) {
     const hintId = hint ? `${id}-hint` : undefined;
     const errorId = error ? `${id}-error` : undefined;
-    const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
+    // The error first, so it is what a screen reader reads right after the label.
+    const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined;
 
     return (
         <div className={cx('flex flex-col gap-1.5', className)}>
