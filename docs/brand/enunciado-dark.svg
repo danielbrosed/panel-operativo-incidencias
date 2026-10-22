@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="286" viewBox="0 0 1200 286" role="img" aria-labelledby="t d">
+  <title id="t">Enunciado cubierto</title>
+  <desc id="d">Los cinco ejercicios de la prueba y la documentación del uso de IA están cubiertos.</desc>
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3417ff"/>
+      <stop offset="1" stop-color="#0086ff"/>
+    </linearGradient>
+    <clipPath id="card"><rect x="1" y="1" width="1198" height="284" rx="30"/></clipPath>
+  </defs>
+  <rect x="1" y="1" width="1198" height="284" rx="30" fill="#0c0233" stroke="#2a2156" stroke-width="2"/>
+  <rect x="0" y="0" width="1200" height="8" fill="url(#brand)" clip-path="url(#card)"/>
+  <text x="600" y="62" text-anchor="middle" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="26" font-weight="700" fill="#ffffff">Enunciado cubierto</text>
+  <text x="600" y="92" text-anchor="middle" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="500" fill="#a9a6c2">Cinco ejercicios, uso de IA documentado y entrega lista para ejecutar sin adivinar</text>
+  <g transform="translate(44 118)">
+    <rect width="172" height="140" rx="22" fill="#16093f"/>
+    <circle cx="28" cy="32" r="13" fill="url(#brand)"/>
+    <path d="M21.5 32.5l4.5 4.5 8.5-9" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="37" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2" fill="#5fb0ff">EJ. 1</text>
+    <text x="18" y="80" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Pantalla principal</text>
+    <text x="18" y="104" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">Lista, estados, alta,</text>
+    <text x="18" y="121" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">acciones</text>
+  </g>
+  <g transform="translate(232 118)">
+    <rect width="172" height="140" rx="22" fill="#16093f"/>
+    <circle cx="28" cy="32" r="13" fill="url(#brand)"/>
+    <path d="M21.5 32.5l4.5 4.5 8.5-9" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="37" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2" fill="#5fb0ff">EJ. 2</text>
+    <text x="18" y="80" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Modelo de datos</text>
+    <text x="18" y="104" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">FK, índices, CHECK,</text>
+    <text x="18" y="121" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">enums</text>
+  </g>
+  <g transform="translate(420 118)">
+    <rect width="172" height="140" rx="22" fill="#16093f"/>
+    <circle cx="28" cy="32" r="13" fill="url(#brand)"/>
+    <path d="M21.5 32.5l4.5 4.5 8.5-9" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="37" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2" fill="#5fb0ff">EJ. 3</text>
+    <text x="18" y="80" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Acciones</text>
+    <text x="18" y="104" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">Transacciones y</text>
+    <text x="18" y="121" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">trazabilidad</text>
+  </g>
+  <g transform="translate(608 118)">
+    <rect width="172" height="140" rx="22" fill="#16093f"/>
+    <circle cx="28" cy="32" r="13" fill="url(#brand)"/>
+    <path d="M21.5 32.5l4.5 4.5 8.5-9" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="37" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2" fill="#5fb0ff">EJ. 4</text>
+    <text x="18" y="80" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Interacción</text>
+    <text x="18" y="104" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">Las 5 opciones del</text>
+    <text x="18" y="121" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">enunciado</text>
+  </g>
+  <g transform="translate(796 118)">
+    <rect width="172" height="140" rx="22" fill="#16093f"/>
+    <circle cx="28" cy="32" r="13" fill="url(#brand)"/>
+    <path d="M21.5 32.5l4.5 4.5 8.5-9" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="37" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2" fill="#5fb0ff">EJ. 5</text>
+    <text x="18" y="80" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Diagnóstico</text>
+    <text x="18" y="104" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">SQL, dry-run y</text>
+    <text x="18" y="121" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">corrección</text>
+  </g>
+  <g transform="translate(984 118)">
+    <rect width="172" height="140" rx="22" fill="#16093f"/>
+    <circle cx="28" cy="32" r="13" fill="url(#brand)"/>
+    <path d="M21.5 32.5l4.5 4.5 8.5-9" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="37" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2" fill="#5fb0ff">IA</text>
+    <text x="18" y="80" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Uso de IA</text>
+    <text x="18" y="104" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">Proceso, prompts y</text>
+    <text x="18" y="121" font-family="Montserrat, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#a9a6c2">errores</text>
+  </g>
+</svg>
