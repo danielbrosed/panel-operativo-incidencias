@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SecurityHeadersTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_pages_send_baseline_security_headers(): void
     {
-        $response = $this->get('/');
+        $response = $this->get('/incidents');
 
         $response->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
@@ -21,7 +24,7 @@ class SecurityHeadersTest extends TestCase
 
     public function test_csp_nonce_in_the_header_matches_the_one_given_to_the_page(): void
     {
-        $response = $this->get('/');
+        $response = $this->get('/incidents');
 
         $policy = (string) $response->headers->get('Content-Security-Policy');
         $this->assertStringContainsString("object-src 'none'", $policy);
@@ -38,7 +41,7 @@ class SecurityHeadersTest extends TestCase
     {
         config(['security.csp' => 'report']);
 
-        $response = $this->get('/');
+        $response = $this->get('/incidents');
 
         $response->assertHeaderMissing('Content-Security-Policy');
         $this->assertNotEmpty($response->headers->get('Content-Security-Policy-Report-Only'));
